@@ -130,6 +130,7 @@ in
           sshpass
           kubernetes
           kubernetes-helm
+          argocd
           tmux
           opencode
           btop
