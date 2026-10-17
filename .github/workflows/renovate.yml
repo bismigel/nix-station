@@ -1,0 +1,39 @@
+name: Renovate
+
+on:
+  schedule:
+    # Monday 09:00 UTC = Monday 05:00 America/Toronto — inside the "before 6am
+    # Monday" window in renovate.json.
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/renovate.yml"
+      - "renovate.json"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@v46.3.8
+        with:
+          # This repo lives under a different GitHub account (prawnfarmerdev), so
+          # the bismigel PAT doesn't cover it — use the automatic GITHUB_TOKEN.
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_ONBOARDING: "false"
+          LOG_LEVEL: info
