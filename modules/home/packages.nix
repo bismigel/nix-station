@@ -145,8 +145,10 @@ in
             gptfdisk
 
             tmux
-          opencode
-          btop
+            opencode
+            pi-coding-agent
+            herdr
+            btop
           htop
           fastfetch
           cmatrix
