@@ -11,8 +11,11 @@
     # Dendritic pattern tooling: flake-parts is the top-level module system,
     # import-tree recursively imports every module under ./modules so files
     # never have to be listed by hand.
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    import-tree.url = "github:denful/import-tree";
+      flake-parts.url = "github:hercules-ci/flake-parts";
+      import-tree.url = "github:denful/import-tree";
+
+      # Emacs porcelain for Herdr, linked into Emacs at build time.
+      herdr-el.url = "github:roman/herdr.el";
 
     # The native RuneScape 3 client still links OpenSSL 1.1, which was removed
     # from nixpkgs as end-of-life. Pin an older nixpkgs just to source it.
