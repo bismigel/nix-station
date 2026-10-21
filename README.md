@@ -28,7 +28,6 @@ modules/
     shell.nix              # bash (prompt, aliases, PATH)
     scripts.nix            # ~/.config/scripts and ~/.local/bin helpers
 files/                     # the actual config files (tracked, portable)
-system/                    # root-owned configs Home Manager cannot own
 ```
 
 ### Dendritic pattern
@@ -114,13 +113,7 @@ than `okra`.
    `.#okra` is the attribute name in `homeConfigurations`, which the flake
    derives from `config.station.identity.username`.
 
-5. **Install the system-level files** (requires root) - see `system/README.md`:
-
-   ```sh
-   sudo install -Dm644 system/xorg/*.conf /etc/X11/xorg.conf.d/
-   ```
-
-6. **Start the desktop.**
+5. **Start the desktop.**
 
    Log in through your display manager and pick the **Sway** session (on this
    machine the `ly` greeter defaults to it).

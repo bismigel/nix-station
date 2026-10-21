@@ -3,8 +3,8 @@
     "emacsorg": {
       "flake": false,
       "locked": {
-        "lastModified": 1790904859,
-        "narHash": "sha256-JrGyRoYT51Ba6VSnzP8dlfTbeYbf2XtvkAICKXoj+fY=",
+        "lastModified": 1791428573,
+        "narHash": "sha256-BC7bEiIixlVHeIzXUb7eUxzjD9Hbed/7H6H5nUgFst4=",
         "path": "/home/okra/projects/emacsorg",
         "type": "path"
       },

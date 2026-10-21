@@ -128,10 +128,23 @@ in
           wget
           openssl
           sshpass
-          kubernetes
-          kubernetes-helm
-          argocd
-          tmux
+            kubernetes
+            kubernetes-helm
+            argocd
+            k9s
+            kubectx
+            opentofu
+            yq
+
+            # ---- Server and disk diagnostics ----
+            btrfs-progs
+            smartmontools
+            nvme-cli
+            lm_sensors
+            parted
+            gptfdisk
+
+            tmux
           opencode
           btop
           htop

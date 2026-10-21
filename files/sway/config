@@ -30,7 +30,7 @@ input "type:keyboard" {
     xkb_options ctrl:nocaps
 }
 
-# Ported from system/xorg/80-touchpad-libinput.conf
+# Touchpad settings (formerly the manual Xorg drop-in).
 input "type:touchpad" {
     tap enabled
     tap_button_map lrm
@@ -239,6 +239,7 @@ bar {
 bindsym $mod+b exec $browser
 bindsym $mod+y exec $term -e yazi
 bindsym $mod+g exec emacs
+bindsym $mod+Shift+b exec blueman-manager
 bindsym Mod1+Shift+s exec grim -g "$(slurp)" - | wl-copy
 
 # Function keys (keep i3 bindings; --no-startup-id dropped)
