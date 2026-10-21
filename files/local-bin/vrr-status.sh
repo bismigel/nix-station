@@ -24,8 +24,8 @@ else
 fi
 
 echo ""
-echo "Xrandr properties:"
-xrandr --prop | grep -A2 -B2 vrr_capable
+echo "Sway adaptive_sync (VRR) state:"
+swaymsg -t get_outputs 2>/dev/null | grep -E '"name"|adaptive_sync' || echo "swaymsg unavailable (not in a Sway session?)"
 
 echo ""
 echo "Graphics card:"
@@ -36,17 +36,7 @@ echo "Kernel parameters:"
 cat /proc/cmdline | grep -o "amdgpu.vrr=[^ ]*" || echo "amdgpu.vrr not found in cmdline"
 
 echo ""
-echo "Xorg config:"
-if [ -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
-    grep "VariableRefresh" /etc/X11/xorg.conf.d/20-amdgpu.conf || echo "VariableRefresh not in config"
-else
-    echo "Xorg config not found at /etc/X11/xorg.conf.d/20-amdgpu.conf"
-fi
-
-echo ""
 echo "Summary: VRR is supported (60-120Hz range)."
-echo "VRR should be enabled with:"
-echo "1. Kernel parameter: amdgpu.vrr=1"
-echo "2. Xorg config: VariableRefresh true"
-echo "3. Requires fullscreen applications (games) for VRR to activate"
-echo "4. i3 window manager (no compositing) is compatible"
+echo "VRR is enabled in Sway via 'output eDP-1 adaptive_sync on' (files/sway/config)."
+echo "Kernel: amdgpu.vrr=1 (or amdgpu.vrr=2 to force)."
+echo "Requires fullscreen applications (games) for VRR to activate."
