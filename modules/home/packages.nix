@@ -143,6 +143,14 @@ in
             parted
             gptfdisk
 
+            # ---- Homelab secrets / backup / context ----
+            sops
+            age
+            rclone
+            rsync
+            bitwarden-cli
+            bws
+
             tmux
             opencode
             pi-coding-agent
