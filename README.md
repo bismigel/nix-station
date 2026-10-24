@@ -23,7 +23,7 @@ modules/
     sway.nix               # Sway, swaylock, i3status config
     power.nix              # swayidle + battery-only hibernate
     webcam.nix             # webcam white-balance reset at login
-    desktop.nix            # dunst, rofi, kitty, wezterm, btop, GTK settings
+    desktop.nix            # dunst, rofi, ghostty, btop, GTK settings
     emacs.nix              # literate Emacs config (tangled from emacsorg)
     shell.nix              # bash (prompt, aliases, PATH)
     scripts.nix            # ~/.config/scripts and ~/.local/bin helpers
@@ -75,7 +75,7 @@ than `okra`.
 - **Comms:** Vesktop, Zoom, Proton VPN
 - **Media:** mpv, qBittorrent, Deluge
 - **Gaming:** Steam, gamescope
-- **Terminals / editors:** kitty, WezTerm, xterm, Emacs, Neovim
+- **Terminals / editors:** Ghostty, xterm, Emacs, Neovim
 - **CLI:** git, gh, jq, curl, wget, kubernetes, helm, tmux, btop, htop,
   fastfetch, cmatrix, yazi, ripgrep, fd, fzf, ...
 - **Audio / input / power:** pipewire, wireplumber, pulseaudio, pavucontrol,
@@ -99,19 +99,18 @@ than `okra`.
    cd ~/projects/nix-station
    ```
 
-3. **Adjust the username** (only if it is not `okra`). Edit the `username`
-   option in `modules/home/identity.nix`; `homeDirectory` defaults to
-   `/home/<username>`. The `homeConfigurations` attribute is then named after
-   that username.
+3. **Add the host** to `config.station.hosts` in `modules/base.nix` (hostname
+   → username). `nixos` and `labanos` are already defined. Every host gets the
+   same merged home module; only the username and home directory differ.
 
 4. **Activate Home Manager.**
 
    ```sh
-   nix run home-manager/master -- switch --flake .#okra
+   nix run home-manager/master -- switch --flake .#nixos
    ```
 
-   `.#okra` is the attribute name in `homeConfigurations`, which the flake
-   derives from `config.station.identity.username`.
+   The flake attribute is the host name from `station.hosts` (e.g. `.#nixos`,
+   `.#labanos`).
 
 5. **Start the desktop.**
 
@@ -121,7 +120,7 @@ than `okra`.
 ## Day-to-day
 
 ```sh
-home-manager switch --flake ~/projects/nix-station#okra   # apply changes
+home-manager switch --flake ~/projects/nix-station#nixos   # apply changes
 home-manager generations                                      # rollback list
 nix flake update                                              # bump inputs
 ```
@@ -132,7 +131,7 @@ Home Manager refuses to overwrite files it does not already manage. When
 switching on a machine that already has these dotfiles, back them up first:
 
 ```sh
-home-manager switch --flake .#okra -b backup
+home-manager switch --flake .#nixos -b backup
 ```
 
 or remove the old files (`~/.config/sway`, `~/.config/i3status`,

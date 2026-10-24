@@ -27,7 +27,8 @@ in
     }:
     {
       home = {
-        inherit username homeDirectory;
+        username = lib.mkDefault username;
+        homeDirectory = lib.mkDefault homeDirectory;
         stateVersion = "25.05";
       };
 
@@ -44,7 +45,7 @@ in
       ];
 
       home.sessionVariables = {
-        TERMINAL = "kitty";
+        TERMINAL = "ghostty";
         RADV_PERFTEST = "aco";
         MESA_SHADER_CACHE_DIR = "${config.xdg.cacheHome}/mesa-shaders";
 
