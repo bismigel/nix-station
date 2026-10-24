@@ -18,7 +18,7 @@ set $menu rofi -show drun
 font pango:Inconsolata Nerd Font Bold 9
 
 ### Cursor (compositor cursor; keep in sync with home.pointerCursor)
-seat seat0 xcursor_theme Adwaita 32
+seat seat0 xcursor_theme Adwaita 24
 
 ### Outputs
 # Solid black background (i3 had no wallpaper either).
@@ -43,12 +43,16 @@ input "type:touchpad" {
     middle_emulation enabled
     dwt enabled
     drag enabled
-    scroll_factor 1.0
+    scroll_factor 0.5
 }
 
 ### Autostart
-exec sway-audio-idle-inhibit
+# sway-audio-idle-inhibit aborts inside Pulse::connect (SIGABRT) when
+# pipewire-pulse's socket is not up yet, and sway does not restart a failed
+# `exec`, so it died silently at every login. Wait for the pulse socket first.
+exec sh -c 'until pactl info >/dev/null 2>&1; do sleep 1; done; exec sway-audio-idle-inhibit'
 exec nm-applet --indicator
+exec blueman-applet
 exec dunst
 exec ~/.config/scripts/power-manager.sh
 exec ~/.config/i3status/scripts/weather_daemon.sh
@@ -243,6 +247,7 @@ bindsym $mod+b exec $browser
 bindsym $mod+y exec $term -e yazi
 bindsym $mod+g exec emacs
 bindsym $mod+Shift+b exec blueman-manager
+bindsym $mod+Ctrl+b exec $term -e bluetui
 bindsym Mod1+Shift+s exec grim -g "$(slurp)" - | wl-copy
 
 # Function keys (keep i3 bindings; --no-startup-id dropped)

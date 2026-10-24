@@ -16,6 +16,10 @@
   hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
 
+  # Firmware updates (fwupd/`fwupdmgr`, LVFS). The service pulls in udisks2
+  # and polkit, and exposes devices to the system DBus.
+  services.fwupd.enable = true;
+
   # ---- Boot: UEFI + systemd-boot + LUKS2 ----
   boot = {
     loader = {
@@ -60,6 +64,73 @@
     ipv6.method = "auto";
   };
 
+  # ---- Bluetooth (WiFi/BT combo card) ----
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+  # Tray applet (blueman-applet) + manager (blueman-manager, bound to
+  # $mod+Shift+b in files/sway/config).
+  services.blueman.enable = true;
+
+  # ---- Brave: debloat via managed policies ----
+  # Brave reads system-wide policy from /etc/brave/policies/managed. Everything
+  # listed here gets removed from the UI and locked off (the toggles grey out),
+  # which is the point of a debloat list - keep it short and deliberate.
+  # Cost: Brave then reports itself as "managed by your organization".
+  environment.etc."brave/policies/managed/debloat.json".text = builtins.toJSON {
+    BraveRewardsDisabled = true; # Rewards, Brave Ads, NTP sponsored images
+    BraveWalletDisabled = true; # built-in crypto wallet
+    BraveVPNDisabled = true; # VPN upsell
+    BraveNewsDisabled = true; # Brave News feed
+    BraveTalkDisabled = true; # Brave Talk upsell
+    BraveAIChatEnabled = false; # Leo AI assistant (sends page text to Brave)
+    TorDisabled = true; # private window with Tor
+    BraveWebDiscoveryEnabled = false; # opt-in search index telemetry
+    BraveStatsPingEnabled = false; # daily P3A/stats ping
+    BraveP3AEnabled = false;
+    MetricsReportingEnabled = false; # Chromium UMA
+    UrlKeyedAnonymizedDataCollectionEnabled = false;
+  };
+
+  # ---- Secrets service (org.freedesktop.secrets) ----
+  # ProtonVPN's GTK app probes the keyring backend before it even shows a
+  # window; with no Secret Service on the session bus it dies with
+  #   keyring.errors.InitError / DBusErrorResponse(NameHasNoOwner)
+  #   "Could not activate remote peer 'org.freedesktop.secrets': unit failed"
+  # `gnome-keyring` being a *home* package only puts the daemon binary in the
+  # user profile - the D-Bus activation file ships in the package's share/ and
+  # home-manager does not expose share/dbus-1/services. Enabling the system
+  # module installs it into /run/current-system/sw/share/dbus-1/services (which
+  # is on XDG_DATA_DIRS) so the session bus can activate it on demand.
+  services.gnome.gnome-keyring.enable = true;
+  # That module only adds pam_gnome_keyring to the "login" service, but ly has
+  # its own stack (security.pam.services.ly, useDefaultRules = false), so the
+  # keyring was never unlocked and ProtonVPN asked to create/unlock one on every
+  # launch. Mirror the rules into ly's stack, ordered right after its `login`
+  # (pam_unix) rule so `use_authtok` sees the password typed at the prompt.
+  # Both rules are `optional`, so they can never block a login.
+  security.pam.services.ly.rules = {
+    auth.gnome_keyring = {
+      order = config.security.pam.services.ly.rules.auth.login.order + 10;
+      control = "optional";
+      modulePath = "${pkgs.gnome-keyring}/lib/security/pam_gnome_keyring.so";
+      settings.use_authtok = true;
+    };
+    password.gnome_keyring = {
+      order = config.security.pam.services.ly.rules.password.login.order + 10;
+      control = "optional";
+      modulePath = "${pkgs.gnome-keyring}/lib/security/pam_gnome_keyring.so";
+      settings.use_authtok = true;
+    };
+    session.gnome_keyring = {
+      order = config.security.pam.services.ly.rules.session.login.order + 10;
+      control = "optional";
+      modulePath = "${pkgs.gnome-keyring}/lib/security/pam_gnome_keyring.so";
+      settings.auto_start = true;
+    };
+  };
+
   # ---- Locale / time ----
   time.timeZone = "America/Toronto";
   i18n.defaultLocale = "en_US.UTF-8";
@@ -100,6 +171,18 @@
   services.displayManager = {
     ly.enable = true;
     defaultSession = "sway";
+  };
+
+  # ---- Gaming (Steam) ----
+  # The module brings its own 32-bit graphics support
+  # (hardware.graphics.enable32Bit), controller udev rules and Steam runtime;
+  # `nixpkgs.config.allowUnfree` below covers the package itself.
+  # gamescope is installed separately in modules/home/packages.nix.
+  programs.steam = {
+    enable = true;
+    # In-home streaming / Remote Play uses UDP 27031-27036 and TCP 27036-27037.
+    remotePlay.openFirewall = true;
+    localNetworkGameTransfers.openFirewall = true;
   };
 
   # ---- Remote access ----

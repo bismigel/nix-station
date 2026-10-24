@@ -38,7 +38,7 @@ let
   # exposed both via EMACS_TREESIT_GRAMMARS and at Emacs's default
   # ~/.emacs.d/tree-sitter search path, so no grammar is ever compiled at
   # runtime (there is no C compiler on PATH).
-  treesitGrammars = pkgs.emacsPackages.treesit-grammars.with-all-grammars;
+  treesitGrammars = (pkgs.emacsPackagesFor pkgs.emacs-pgtk).treesit-grammars.with-all-grammars;
 in
 {
   config.station.home =

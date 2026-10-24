@@ -91,13 +91,13 @@
     "emacsorg": {
       "flake": false,
       "locked": {
-        "lastModified": 1792599675,
-        "narHash": "sha256-nT3vO+cHLrClHhp28rWQ6BmZjrFT/MfvmNNtXbiIi84=",
-        "path": "/home/okra/projects/emacsorg",
+        "lastModified": 1792813276,
+        "narHash": "sha256-GCoAQ4DWQpVCBr9xABsZuZqgftZ+dISiaLFZagSGiaY=",
+        "path": "/home/labanos/projects/emacsorg",
         "type": "path"
       },
       "original": {
-        "path": "/home/okra/projects/emacsorg",
+        "path": "/home/labanos/projects/emacsorg",
         "type": "path"
       }
     },
