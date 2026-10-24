@@ -18,7 +18,7 @@ set $menu rofi -show drun
 font pango:Inconsolata Nerd Font Bold 9
 
 ### Cursor (compositor cursor; keep in sync with home.pointerCursor)
-seat seat0 xcursor_theme Adwaita 32
+seat seat0 xcursor_theme Adwaita 24
 
 ### Outputs
 # Solid black background (i3 had no wallpaper either).
