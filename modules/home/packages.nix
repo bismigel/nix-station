@@ -29,12 +29,21 @@ let
   # Apps that need unfree (Steam, Zoom) or are large.
   graphical = with pkgs; [
     # Browsers.
-    # Brave: the nixpkgs wrapper force-enables VAAPI encode
-    # (--enable-features=AcceleratedVideoEncoder). On this AMD laptop that makes
-    # WebRTC send black frames (the local preview still looks fine), so disable
-    # hardware video encoding while keeping hardware decode.
+    # Brave: the nixpkgs wrapper force-enables VA-API
+    # (--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoEncoder)
+    # and carries its own --disable-features list. Chromium keeps the *last*
+    # value of a repeated switch, so an override that only names what it wants
+    # to drop silently resurrects OutdatedBuildDetector and
+    # UseChromeOSDirectVideoDecoder - hence the full restatement below.
+    #
+    # Why each entry is off:
+    #  - AcceleratedVideoEncoder: makes WebRTC send black frames on this AMD
+    #    laptop (the local preview still looks fine).
+    #  - AcceleratedVideoDecodeLinuxGL: the Wayland GL-backed VA-API path crashes
+    #    renderers here, which is what turns Discord web grey / "render process
+    #    gone". Drop this entry first if you want hardware decode back.
     (brave.override {
-      commandLineArgs = "--disable-features=AcceleratedVideoEncoder";
+      commandLineArgs = "--disable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoEncoder,OutdatedBuildDetector,UseChromeOSDirectVideoDecoder";
     })
     firefox
     chromium
@@ -111,6 +120,12 @@ in
           util-linux
           networkmanager
           polkit
+
+          # ---- Bluetooth ----
+          # Terminal UI for pairing/connecting devices, the nmtui analogue to
+          # blueman-manager (which needs a graphical session). Bound to
+          # $mod+Ctrl+b in files/sway/config.
+          bluetui
 
           # ---- Terminals / editors ----
           ghostty
