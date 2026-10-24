@@ -33,6 +33,9 @@
             content = {
               type = "luks";
               name = "cryptroot";
+              # Non-interactive install: the passphrase is copied to the
+              # installer via `nixos-anywhere --disk-encryption-keys`.
+              passwordFile = "/tmp/cryptroot.key";
               settings = {
                 allowDiscards = true;
               };

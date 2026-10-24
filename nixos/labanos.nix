@@ -11,6 +11,9 @@
 
   # ---- Hardware ----
   hardware.cpu.amd.updateMicrocode = true;
+  # AMD RDNA3 (Radeon 780M) needs the amdgpu firmware from linux-firmware;
+  # without it the GPU fails to init and sway runs on software rendering.
+  hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
 
   # ---- Boot: UEFI + systemd-boot + LUKS2 ----
@@ -87,8 +90,9 @@
       "lp"
       "dialout"
     ];
-    # TODO: change after first login (plaintext in git).
-    initialPassword = "REDACTED";
+    # Password hash is not stored in git. It is provisioned at install time
+    # from Bitwarden Secrets Manager to this path (see nixos/README).
+    hashedPasswordFile = "/etc/nixos-secrets/labanos.hash";
   };
 
   # ---- Sway session + login manager ----
@@ -101,8 +105,30 @@
   # ---- Remote access ----
   services.openssh.enable = true;
 
-  # ---- Power ----
+  # ---- Power: full performance on AC, maximum savings on battery ----
   powerManagement.enable = true;
+  services.tlp = {
+    enable = true;
+    settings = {
+      # AC: full performance
+      CPU_SCALING_GOVERNOR_ON_AC = "performance";
+      CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
+      CPU_BOOST_ON_AC = 1;
+      PLATFORM_PROFILE_ON_AC = "performance";
+      RADEON_DPM_STATE_ON_AC = "performance";
+      WIFI_PWR_ON_AC = "off";
+      PCIE_ASPM_ON_AC = "default";
+      # Battery: maximum savings
+      CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+      CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+      CPU_BOOST_ON_BAT = 0;
+      PLATFORM_PROFILE_ON_BAT = "low-power";
+      RADEON_DPM_STATE_ON_BAT = "battery";
+      WIFI_PWR_ON_BAT = "on";
+      PCIE_ASPM_ON_BAT = "powersupersave";
+      USB_AUTOSUSPEND = 1;
+    };
+  };
   services.logind.settings = {
     Login = {
       HandleLidSwitch = "suspend";
