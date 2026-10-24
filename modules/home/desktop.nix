@@ -17,9 +17,8 @@ in
       # Dark theme referenced by config.rasi (kept next to it, relative import).
       xdg.configFile."rofi/Arc-Dark.rasi".source = "${pkgs.rofi}/share/rofi/themes/Arc-Dark.rasi";
 
-      # ---- Terminals ----
-      xdg.configFile."kitty/kitty.conf".source = ../../files/kitty/kitty.conf;
-      xdg.configFile."wezterm/wezterm.lua".source = ../../files/wezterm/wezterm.lua;
+      # ---- Terminal ----
+      xdg.configFile."ghostty/config".source = ../../files/ghostty/config;
 
       # ---- System monitor ----
       xdg.configFile."btop/btop.conf".source = ../../files/btop/btop.conf;

@@ -5,7 +5,7 @@ configuration {
     font: "Lekton Nerd Font Bold 16";
     show-icons: true;
     icon-theme: "Papirus";
-    terminal: "kitty";
+    terminal: "ghostty";
     drun-display-format: "{name}";
     disable-history: false;
     sidebar-mode: false;

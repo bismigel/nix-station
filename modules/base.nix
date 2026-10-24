@@ -23,9 +23,25 @@ in
       type = lib.types.deferredModule;
       default = { };
     };
+
+    # Per-host home configurations: hostname -> { username }. Every host gets
+    # the same merged home module; only the username/home directory differ.
+    hosts = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule {
+        options.username = lib.mkOption {
+          type = lib.types.str;
+        };
+      });
+      default = { };
+    };
   };
 
   config.systems = [ system ];
+
+  config.station.hosts = {
+    nixos.username = "okra";
+    labanos.username = "labanos";
+  };
 
   config.station.pkgs = import inputs.nixpkgs {
     inherit system;
