@@ -21,6 +21,27 @@ let
   # client finds both.
   boltPkg = pkgs.bolt-launcher.override { enableRS3 = true; };
 
+  # The blueman tray item sets StatusNotifierItem IconName to "blueman-tray"
+  # (blueman/main/Tray.py), and no icon theme on this system ships that name:
+  # Papirus only has blueman-tray-active/-disabled under <theme>/<size>/panel.
+  # swaybar's default fallback theme is hicolor, and hicolor's index.theme does
+  # not list a panel/ directory either, so the lookup failed and swaybar drew
+  # image-missing - the red sad face in the systray. Render PNGs (sway cannot
+  # load SVG icons) of Papirus's panel icon into hicolor/status, which is both
+  # the fallback theme and the icon directory the home profile unions from every
+  # package, so the name finally resolves.
+  bluemanTrayIcon =
+    let
+      svg = "${pkgs.papirus-icon-theme}/share/icons/Papirus/16x16/panel/blueman-tray-active.svg";
+    in
+    pkgs.runCommand "blueman-tray-icon" { nativeBuildInputs = [ pkgs.librsvg ]; } ''
+      for s in 16 22 24 32 48; do
+        mkdir -p "$out/share/icons/hicolor/''${s}x''${s}/status"
+        rsvg-convert -w "$s" -h "$s" "${svg}" \
+          -o "$out/share/icons/hicolor/''${s}x''${s}/status/blueman-tray.png"
+      done
+    '';
+
   boltLauncher = pkgs.writeShellScriptBin "bolt-launcher" ''
     export LD_LIBRARY_PATH="${lib.getLib openssl11}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     exec ${boltPkg}/bin/bolt-launcher "$@"
@@ -190,6 +211,7 @@ in
           gtk4
           adwaita-icon-theme
           papirus-icon-theme
+          bluemanTrayIcon
           liberation_ttf
           dejavu_fonts
           noto-fonts
