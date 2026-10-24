@@ -1,12 +1,14 @@
 # Ghostty config (replaces kitty + WezTerm).
-theme = Gruvbox Dark
-background = #000000
+# "Matte Black" is a bundled Ghostty theme (palette 0-15, background #121212,
+# foreground #bebebe, cursor #eaeaea). Any per-key colour below would override
+# the theme, so the background override that used to sit here is gone - keep
+# overrides out of this file unless a colour is deliberately not from the theme.
+theme = Matte Black
 font-family = Inconsolata Nerd Font
 font-size = 11
 cursor-style = block
 cursor-style-blink = true
 mouse-hide-while-typing = true
 confirm-close-surface = false
-background-opacity = 0.95
 window-padding-x = 12
 window-padding-y = 10
