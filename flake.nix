@@ -31,10 +31,11 @@
     # by modules/home/emacs.nix.
     #
     # Currently pinned to the local working copy while the no-Evil/ghostel
-    # rewrite is in progress. Switch back to the GitHub URL once it is pushed:
+    # rewrite is in progress. The pushed GitHub revision is older than the local
+    # tree, so switch back only once the rewrite is pushed:
     #   url = "github:prawnfarmerdev/emacsorg";
     emacsorg = {
-      url = "path:/home/okra/projects/emacsorg";
+      url = "path:/home/labanos/projects/emacsorg";
       flake = false;
     };
   };
