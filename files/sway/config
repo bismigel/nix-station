@@ -10,7 +10,7 @@ include /etc/sway/config.d/*
 set $mod Mod4
 
 ### Variables
-set $term kitty
+set $term ghostty
 set $browser brave
 set $menu rofi -show drun
 
@@ -149,9 +149,9 @@ set $ws9 "9"
 set $ws10 "10"
 
 # Assign applications to workspaces (app_id = Wayland, class = XWayland)
-assign [app_id="kitty"] workspace number $ws1
-for_window [app_id="kitty"] focus
-assign [class="kitty"] workspace number $ws1
+assign [app_id="com.mitchellh.ghostty"] workspace number $ws1
+for_window [app_id="com.mitchellh.ghostty"] focus
+assign [class="[Gg]hostty"] workspace number $ws1
 assign [app_id="brave-browser"] workspace number $ws2
 for_window [app_id="brave-browser"] focus
 assign [class="[Bb]rave.*"] workspace number $ws2

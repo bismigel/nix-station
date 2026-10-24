@@ -113,8 +113,7 @@ in
           polkit
 
           # ---- Terminals / editors ----
-          kitty
-          wezterm
+          ghostty
           xterm
           emacs
           neovim

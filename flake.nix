@@ -8,6 +8,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Declarative disk partitioning (LUKS + btrfs for the NixOS hosts).
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Dendritic pattern tooling: flake-parts is the top-level module system,
     # import-tree recursively imports every module under ./modules so files
     # never have to be listed by hand.
