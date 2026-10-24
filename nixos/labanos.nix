@@ -39,29 +39,50 @@
     networkmanager.enable = true;
   };
 
-  # WiFi PSK is never committed to git. It is read from the POTATO_CORNER_PSK
-  # environment variable at build time, so it can be sourced from Bitwarden
-  # (or exported directly) at install time. Build with pure-eval disabled:
+  # WiFi PSK is never committed to git and never enters the Nix store. The
+  # declarative profile leaves the secret agent-owned (psk-flags=1) and
+  # nm-file-secret-agent (nixpkgs' `ensureProfiles.secrets`) hands NetworkManager
+  # the contents of a root-only file at activation time.
   #
-  #   POTATO_CORNER_PSK=$(bw get password "Potato Corner WiFi" --raw) \
-  #     nixos-anywhere --option pure-eval false --flake .#labanos root@IP
-  networking.networkmanager.ensureProfiles.profiles."Potato Corner" = {
-    connection = {
-      id = "Potato Corner";
-      type = "wifi";
-      autoconnect = true;
+  # Because the previous version read the key at *build* time via
+  # `builtins.getEnv "POTATO_CORNER_PSK"`, any rebuild without that variable
+  # exported wrote `psk=` empty, so NetworkManager asked a secret agent for it,
+  # found none ("no secrets: No agents were available") and autoconnect failed
+  # on every boot until the key was typed in again.
+  #
+  # One-time setup (file survives rebuilds, /etc is not tmpfs):
+  #   sudo install -d -m 0700 /etc/nixos-secrets
+  #   sudo sh -c 'umask 077; bw get password "Potato Corner WiFi" --raw \
+  #     > /etc/nixos-secrets/potato-corner.psk'
+  networking.networkmanager.ensureProfiles = {
+    profiles."Potato Corner" = {
+      connection = {
+        id = "Potato Corner";
+        type = "wifi";
+        autoconnect = true;
+      };
+      wifi = {
+        mode = "infrastructure";
+        ssid = "Potato Corner";
+      };
+      wifi-security = {
+        auth-alg = "open";
+        key-mgmt = "wpa-psk";
+        # 1 = agent-owned: never persisted in the connection profile.
+        psk-flags = "1";
+      };
+      ipv4.method = "auto";
+      ipv6.method = "auto";
     };
-    wifi = {
-      mode = "infrastructure";
-      ssid = "Potato Corner";
-    };
-    wifi-security = {
-      auth-alg = "open";
-      key-mgmt = "wpa-psk";
-      psk = builtins.getEnv "POTATO_CORNER_PSK";
-    };
-    ipv4.method = "auto";
-    ipv6.method = "auto";
+    secrets.entries = [
+      {
+        matchId = "Potato Corner";
+        matchType = "802-11-wireless";
+        matchSetting = "802-11-wireless-security";
+        key = "psk";
+        file = "/etc/nixos-secrets/potato-corner.psk";
+      }
+    ];
   };
 
   # ---- Bluetooth (WiFi/BT combo card) ----
