@@ -115,7 +115,7 @@ in
           # ---- Terminals / editors ----
           ghostty
           xterm
-          emacs
+          emacs-pgtk
           neovim
 
           # ---- CLI / dev tooling ----
