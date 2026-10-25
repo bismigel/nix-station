@@ -6,7 +6,7 @@ the apps and manages the dotfiles for a **Sway / Wayland** desktop, and it works
 on any Linux distribution that has Nix installed, as well as on NixOS.
 
 The reference machine: ASUS ROG Zephyrus G14 (GA402RK), AMD Ryzen 9 6900HS
-(Radeon 680M), Sway + i3status on Wayland. The owner is `okra`, hostname
+(Radeon 680M), Sway + waybar on Wayland. The owner is `okra`, hostname
 `nixos`.
 
 ## Layout
@@ -20,8 +20,8 @@ modules/
   home/
     identity.nix           # username/homeDirectory options, session vars, cursor
     packages.nix           # every application / CLI / font
-    sway.nix               # Sway, swaylock, i3status config
-    power.nix              # swayidle + battery-only hibernate
+    sway.nix               # Sway, swaylock, waybar/i3status config
+    power.nix              # swayidle schedule (power-aware), audio idle inhibitor
     webcam.nix             # webcam white-balance reset at login
     desktop.nix            # dunst, rofi, ghostty, btop, GTK settings
     emacs.nix              # literate Emacs config (tangled from emacsorg)
@@ -69,8 +69,8 @@ than `okra`.
 ## What gets installed
 
 - **Desktop / WM:** Sway (swayidle, swaylock, swaybg), grim, slurp, wl-clipboard,
-  wtype, i3status, rofi, dunst, network-manager-applet, polkit-gnome,
-  gnome-keyring
+  wtype, waybar, i3status (kept for its daemons only), rofi, dunst,
+  network-manager-applet, polkit-gnome, gnome-keyring, sway-audio-idle-inhibit
 - **Browsers:** Brave, Firefox, Chromium
 - **Comms:** Vesktop, Zoom, Proton VPN
 - **Media:** mpv, qBittorrent, Deluge
@@ -82,6 +82,32 @@ than `okra`.
   playerctl, brightnessctl, tlp, powertop, upower, v4l-utils
 - **Fonts:** Inconsolata, Lekton and Symbols Nerd Fonts, Liberation, DejaVu,
   Noto.
+
+## Bar and idle behaviour
+
+- **The bar is waybar, not swaybar.** swaybar's tray only forwards clicks as
+  StatusNotifierItem method calls and has no `com.canonical.dbusmenu`
+  implementation (`// TODO menu` in `swaybar/tray/item.c`), so right-click did
+  nothing for blueman, nm-applet and Proton VPN - all three publish their menus
+  via dbusmenu. waybar implements it and pops a real menu. `files/waybar/style.css`
+  reproduces the old look (black bar, i3 workspace colours, the i3status
+  good/degraded/bad palette) and adds threshold colours: battery goes amber at
+  15% and red at 5%, with the same treatment for cpu/memory/disk.
+- **Idle timeouts depend on the power source.** swayidle's timeouts are static
+  and two instances would double-fire, so every branch is registered and
+  `files/scripts/idle-power-guard.sh` decides at fire time whether it applies:
+  on AC the session locks after **2 hours**; on battery it hibernates after
+  **10 minutes** and locks at 15 minutes as a fallback. `before-sleep` always
+  locks, so closing the lid still locks immediately.
+- **`sway-audio-idle-inhibit` is a systemd unit**, not a sway `exec`. As an
+  `exec` it lost the pipewire startup race, sway does not restart a failed
+  `exec`, and the result was no inhibitor at all - so calls and video still
+  counted as idle and locked the session mid-use.
+- **SVG tray icons need `GDK_PIXBUF_MODULE_FILE`** (`identity.nix`). Without it
+  gdk-pixbuf cannot decode them and the tray draws `image-missing` instead.
+- Proton VPN registers its tray item once at startup and never re-registers
+  when the bar's StatusNotifierWatcher restarts, so its icon disappears after a
+  bar restart until the app is restarted.
 
 ## Fresh install on another machine
 
@@ -120,9 +146,10 @@ than `okra`.
 ## Day-to-day
 
 ```sh
-home-manager switch --flake ~/projects/nix-station#nixos   # apply changes
-home-manager generations                                      # rollback list
-nix flake update                                              # bump inputs
+home-manager switch --flake ~/projects/nix-station#nixos   # standalone HM host
+sudo nixos-rebuild switch --flake .#labanos               # this NixOS host (HM embedded)
+home-manager generations                                   # rollback list
+nix flake update                                           # bump inputs
 ```
 
 ## Migration caveats
@@ -134,9 +161,9 @@ switching on a machine that already has these dotfiles, back them up first:
 home-manager switch --flake .#nixos -b backup
 ```
 
-or remove the old files (`~/.config/sway`, `~/.config/i3status`,
-`~/.config/rofi`, `~/.config/dunst`, `~/.config/scripts`, `~/.local/bin`,
-`~/.bashrc`, ...) before the first switch.
+or remove the old files (`~/.config/sway`, `~/.config/waybar`,
+`~/.config/i3status`, `~/.config/rofi`, `~/.config/dunst`,
+`~/.config/scripts`, `~/.local/bin`, `~/.bashrc`, ...) before the first switch.
 
 A few things stay machine/distribution specific and are intentionally **not**
 managed here:
@@ -152,8 +179,10 @@ managed here:
 - **Steam** is unfree and, on a non-NixOS host, may need extra set-up (the
   `steam` package plus `nixpkgs.config.allowUnfree`, already set here). On NixOS
   prefer `programs.steam.enable = true`.
-- The bar reads `/tmp/{weather,audio_output,mic_status}.txt`, written by the
-  daemons under `~/.config/i3status/scripts/`.
+- The bar is **waybar**; its `custom/{weather,audio,mic}` modules read
+  `/tmp/{weather,audio_output,mic_status}.txt`, still written by the daemons
+  under `~/.config/i3status/scripts/`. Only those *daemons* remain from
+  i3status - nothing renders i3status' own JSON any more.
 - **Emacs** uses the literate config from
   [`prawnfarmerdev/emacsorg`](https://github.com/prawnfarmerdev/emacsorg)
   (pinned as the `emacsorg` flake input). `modules/home/emacs.nix` tangles its
@@ -163,9 +192,10 @@ managed here:
 - **Tree-sitter:** all nixpkgs grammars (`emacsPackages.treesit-grammars.with-all-grammars`)
   are provided and symlinked to `~/.emacs.d/tree-sitter`, so tree-sitter works
   without any runtime grammar compilation.
-- `i3status` currently uses a hardware-specific battery path
-  (`/sys/class/power_supply/BAT%d/uevent`) and a Toronto timezone; edit
-  `files/i3status/config` for other hardware/regions.
+- `files/waybar/config` pins the battery to `bat = "BAT1"` and the clock to
+  `America/Toronto`; edit those two for other hardware/regions. `BAT1` is what
+  this laptop exposes - there is no `BAT0`, which an i3status-style `BAT%d` glob
+  would have silently missed.
 
 ## Reusing on NixOS
 
