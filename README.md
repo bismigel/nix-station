@@ -1,13 +1,21 @@
 # nix-station
 
-Declarative reproduction of this ASUS ROG Zephyrus G14 laptop's desktop, built
+Declarative reproduction of the desktop on my personal Linux machines, built
 on [Home Manager](https://github.com/nix-community/home-manager). It installs
 the apps and manages the dotfiles for a **Sway / Wayland** desktop, and it works
 on any Linux distribution that has Nix installed, as well as on NixOS.
 
-The reference machine: ASUS ROG Zephyrus G14 (GA402RK), AMD Ryzen 9 6900HS
-(Radeon 680M), Sway + waybar on Wayland. The owner is `okra`, hostname
-`nixos`.
+One configuration serves every machine. A host differs only by its hostname and
+username, both of which live in `config.station.hosts` (`modules/base.nix`):
+
+| host      | user      | machine                                  |
+| --------- | --------- | ---------------------------------------- |
+| `labanos` | `labanos` | Framework Laptop 16 (AMD Ryzen 7040)     |
+| `nixos`   | `okra`    | ASUS ROG Zephyrus G14 (GA402RK)          |
+
+The genuinely hardware-specific values are few and are kept together (see
+[Adding another machine](#adding-another-machine)) so a new PC mostly costs a
+hostname and a username.
 
 ## Layout
 
@@ -59,8 +67,8 @@ nothing is threaded through `extraSpecialArgs`. `modules/home-configurations.nix
 pulls the merged module into `flake.homeConfigurations` and publishes it as
 `flake.homeModules.default`.
 
-All paths inside `files/` use `~` / `$HOME`, so the repo works for a user other
-than `okra`.
+All paths inside `files/` use `~` / `$HOME`, so the repo works for any username;
+nothing assumes `okra` or `labanos`.
 
 > **Flakes only see git-tracked files.** After adding a new `modules/**/*.nix`
 > file, `git add` it before running any `nix` command, or the file is silently
@@ -125,9 +133,9 @@ than `okra`.
    cd ~/projects/nix-station
    ```
 
-3. **Add the host** to `config.station.hosts` in `modules/base.nix` (hostname
-   → username). `nixos` and `labanos` are already defined. Every host gets the
-   same merged home module; only the username and home directory differ.
+3. **Add the host** to `config.station.hosts` in `modules/base.nix` - see
+   [Adding another machine](#adding-another-machine). Every host gets the same
+   merged home module; only the username and home directory differ.
 
 4. **Activate Home Manager.**
 
@@ -142,6 +150,39 @@ than `okra`.
 
    Log in through your display manager and pick the **Sway** session (on this
    machine the `ly` greeter defaults to it).
+
+## Adding another machine
+
+A new PC needs a hostname and a username, plus a check of the handful of
+values that are genuinely tied to hardware. Nothing else is per-machine.
+
+1. Add the host to `config.station.hosts` in `modules/base.nix`:
+
+   ```nix
+   config.station.hosts = {
+     nixos.username = "okra";
+     labanos.username = "labanos";
+     mynewpc.username = "labanos";
+   };
+   ```
+
+2. Switch with that attribute: `home-manager switch --flake .#mynewpc` (or
+   `sudo nixos-rebuild switch --flake .#mynewpc` where the host is a NixOS
+   configuration).
+
+3. Check these hardware-specific knobs and adjust if the machine differs:
+
+   | Value | Where | Notes |
+   | ----- | ----- | ----- |
+   | `bat = "BAT1"` | `files/waybar/config` | battery device name |
+   | `AC_RATE` / `BAT_RATE` | `files/scripts/power-manager.sh` | panel refresh rates; falls back to the highest/lowest the panel advertises |
+   | `output eDP-1 adaptive_sync on`, `output * scale 2` | `files/sway/config` | output name, HiDPI scale |
+   | `$mod` and keybindings | `files/sway/config` | unchanged between my machines |
+   | timezone | `files/waybar/config` | currently `America/Toronto` |
+
+The idle schedule needs no per-machine edits: `idle-power-guard.sh` reads the
+AC state from `/sys/class/power_supply/AC*/online` (or `ACAD/online`), and
+treats a machine with no AC node as permanently plugged in.
 
 ## Day-to-day
 
