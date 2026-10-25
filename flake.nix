@@ -1,5 +1,5 @@
 {
-  description = "ASUS ROG / Sway workstation - declarative Home Manager setup";
+  description = "Personal Sway/Wayland desktops - declarative Home Manager setup";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

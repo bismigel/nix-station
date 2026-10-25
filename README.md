@@ -1,13 +1,21 @@
 # nix-station
 
-Declarative reproduction of this ASUS ROG Zephyrus G14 laptop's desktop, built
+Declarative reproduction of the desktop on my personal Linux machines, built
 on [Home Manager](https://github.com/nix-community/home-manager). It installs
 the apps and manages the dotfiles for a **Sway / Wayland** desktop, and it works
 on any Linux distribution that has Nix installed, as well as on NixOS.
 
-The reference machine: ASUS ROG Zephyrus G14 (GA402RK), AMD Ryzen 9 6900HS
-(Radeon 680M), Sway + i3status on Wayland. The owner is `okra`, hostname
-`nixos`.
+One configuration serves every machine. A host differs only by its hostname and
+username, both of which live in `config.station.hosts` (`modules/base.nix`):
+
+| host      | user      | machine                                  |
+| --------- | --------- | ---------------------------------------- |
+| `labanos` | `labanos` | Framework Laptop 16 (AMD Ryzen 7040)     |
+| `nixos`   | `okra`    | ASUS ROG Zephyrus G14 (GA402RK)          |
+
+The genuinely hardware-specific values are few and are kept together (see
+[Adding another machine](#adding-another-machine)) so a new PC mostly costs a
+hostname and a username.
 
 ## Layout
 
@@ -20,8 +28,8 @@ modules/
   home/
     identity.nix           # username/homeDirectory options, session vars, cursor
     packages.nix           # every application / CLI / font
-    sway.nix               # Sway, swaylock, i3status config
-    power.nix              # swayidle + battery-only hibernate
+    sway.nix               # Sway, swaylock, waybar/i3status config
+    power.nix              # swayidle schedule (power-aware), audio idle inhibitor
     webcam.nix             # webcam white-balance reset at login
     desktop.nix            # dunst, rofi, ghostty, btop, GTK settings
     emacs.nix              # literate Emacs config (tangled from emacsorg)
@@ -59,8 +67,8 @@ nothing is threaded through `extraSpecialArgs`. `modules/home-configurations.nix
 pulls the merged module into `flake.homeConfigurations` and publishes it as
 `flake.homeModules.default`.
 
-All paths inside `files/` use `~` / `$HOME`, so the repo works for a user other
-than `okra`.
+All paths inside `files/` use `~` / `$HOME`, so the repo works for any username;
+nothing assumes `okra` or `labanos`.
 
 > **Flakes only see git-tracked files.** After adding a new `modules/**/*.nix`
 > file, `git add` it before running any `nix` command, or the file is silently
@@ -69,8 +77,8 @@ than `okra`.
 ## What gets installed
 
 - **Desktop / WM:** Sway (swayidle, swaylock, swaybg), grim, slurp, wl-clipboard,
-  wtype, i3status, rofi, dunst, network-manager-applet, polkit-gnome,
-  gnome-keyring
+  wtype, waybar, i3status (kept for its daemons only), rofi, dunst,
+  network-manager-applet, polkit-gnome, gnome-keyring, sway-audio-idle-inhibit
 - **Browsers:** Brave, Firefox, Chromium
 - **Comms:** Vesktop, Zoom, Proton VPN
 - **Media:** mpv, qBittorrent, Deluge
@@ -82,6 +90,32 @@ than `okra`.
   playerctl, brightnessctl, tlp, powertop, upower, v4l-utils
 - **Fonts:** Inconsolata, Lekton and Symbols Nerd Fonts, Liberation, DejaVu,
   Noto.
+
+## Bar and idle behaviour
+
+- **The bar is waybar, not swaybar.** swaybar's tray only forwards clicks as
+  StatusNotifierItem method calls and has no `com.canonical.dbusmenu`
+  implementation (`// TODO menu` in `swaybar/tray/item.c`), so right-click did
+  nothing for blueman, nm-applet and Proton VPN - all three publish their menus
+  via dbusmenu. waybar implements it and pops a real menu. `files/waybar/style.css`
+  reproduces the old look (black bar, i3 workspace colours, the i3status
+  good/degraded/bad palette) and adds threshold colours: battery goes amber at
+  15% and red at 5%, with the same treatment for cpu/memory/disk.
+- **Idle timeouts depend on the power source.** swayidle's timeouts are static
+  and two instances would double-fire, so every branch is registered and
+  `files/scripts/idle-power-guard.sh` decides at fire time whether it applies:
+  on AC the session locks after **2 hours**; on battery it hibernates after
+  **10 minutes** and locks at 15 minutes as a fallback. `before-sleep` always
+  locks, so closing the lid still locks immediately.
+- **`sway-audio-idle-inhibit` is a systemd unit**, not a sway `exec`. As an
+  `exec` it lost the pipewire startup race, sway does not restart a failed
+  `exec`, and the result was no inhibitor at all - so calls and video still
+  counted as idle and locked the session mid-use.
+- **SVG tray icons need `GDK_PIXBUF_MODULE_FILE`** (`identity.nix`). Without it
+  gdk-pixbuf cannot decode them and the tray draws `image-missing` instead.
+- Proton VPN registers its tray item once at startup and never re-registers
+  when the bar's StatusNotifierWatcher restarts, so its icon disappears after a
+  bar restart until the app is restarted.
 
 ## Fresh install on another machine
 
@@ -99,9 +133,9 @@ than `okra`.
    cd ~/projects/nix-station
    ```
 
-3. **Add the host** to `config.station.hosts` in `modules/base.nix` (hostname
-   → username). `nixos` and `labanos` are already defined. Every host gets the
-   same merged home module; only the username and home directory differ.
+3. **Add the host** to `config.station.hosts` in `modules/base.nix` - see
+   [Adding another machine](#adding-another-machine). Every host gets the same
+   merged home module; only the username and home directory differ.
 
 4. **Activate Home Manager.**
 
@@ -117,12 +151,46 @@ than `okra`.
    Log in through your display manager and pick the **Sway** session (on this
    machine the `ly` greeter defaults to it).
 
+## Adding another machine
+
+A new PC needs a hostname and a username, plus a check of the handful of
+values that are genuinely tied to hardware. Nothing else is per-machine.
+
+1. Add the host to `config.station.hosts` in `modules/base.nix`:
+
+   ```nix
+   config.station.hosts = {
+     nixos.username = "okra";
+     labanos.username = "labanos";
+     mynewpc.username = "labanos";
+   };
+   ```
+
+2. Switch with that attribute: `home-manager switch --flake .#mynewpc` (or
+   `sudo nixos-rebuild switch --flake .#mynewpc` where the host is a NixOS
+   configuration).
+
+3. Check these hardware-specific knobs and adjust if the machine differs:
+
+   | Value | Where | Notes |
+   | ----- | ----- | ----- |
+   | `bat = "BAT1"` | `files/waybar/config` | battery device name |
+   | `AC_RATE` / `BAT_RATE` | `files/scripts/power-manager.sh` | panel refresh rates; falls back to the highest/lowest the panel advertises |
+   | `output eDP-1 adaptive_sync on`, `output * scale 2` | `files/sway/config` | output name, HiDPI scale |
+   | `$mod` and keybindings | `files/sway/config` | unchanged between my machines |
+   | timezone | `files/waybar/config` | currently `America/Toronto` |
+
+The idle schedule needs no per-machine edits: `idle-power-guard.sh` reads the
+AC state from `/sys/class/power_supply/AC*/online` (or `ACAD/online`), and
+treats a machine with no AC node as permanently plugged in.
+
 ## Day-to-day
 
 ```sh
-home-manager switch --flake ~/projects/nix-station#nixos   # apply changes
-home-manager generations                                      # rollback list
-nix flake update                                              # bump inputs
+home-manager switch --flake ~/projects/nix-station#nixos   # standalone HM host
+sudo nixos-rebuild switch --flake .#labanos               # this NixOS host (HM embedded)
+home-manager generations                                   # rollback list
+nix flake update                                           # bump inputs
 ```
 
 ## Migration caveats
@@ -134,9 +202,9 @@ switching on a machine that already has these dotfiles, back them up first:
 home-manager switch --flake .#nixos -b backup
 ```
 
-or remove the old files (`~/.config/sway`, `~/.config/i3status`,
-`~/.config/rofi`, `~/.config/dunst`, `~/.config/scripts`, `~/.local/bin`,
-`~/.bashrc`, ...) before the first switch.
+or remove the old files (`~/.config/sway`, `~/.config/waybar`,
+`~/.config/i3status`, `~/.config/rofi`, `~/.config/dunst`,
+`~/.config/scripts`, `~/.local/bin`, `~/.bashrc`, ...) before the first switch.
 
 A few things stay machine/distribution specific and are intentionally **not**
 managed here:
@@ -152,8 +220,10 @@ managed here:
 - **Steam** is unfree and, on a non-NixOS host, may need extra set-up (the
   `steam` package plus `nixpkgs.config.allowUnfree`, already set here). On NixOS
   prefer `programs.steam.enable = true`.
-- The bar reads `/tmp/{weather,audio_output,mic_status}.txt`, written by the
-  daemons under `~/.config/i3status/scripts/`.
+- The bar is **waybar**; its `custom/{weather,audio,mic}` modules read
+  `/tmp/{weather,audio_output,mic_status}.txt`, still written by the daemons
+  under `~/.config/i3status/scripts/`. Only those *daemons* remain from
+  i3status - nothing renders i3status' own JSON any more.
 - **Emacs** uses the literate config from
   [`prawnfarmerdev/emacsorg`](https://github.com/prawnfarmerdev/emacsorg)
   (pinned as the `emacsorg` flake input). `modules/home/emacs.nix` tangles its
@@ -163,9 +233,10 @@ managed here:
 - **Tree-sitter:** all nixpkgs grammars (`emacsPackages.treesit-grammars.with-all-grammars`)
   are provided and symlinked to `~/.emacs.d/tree-sitter`, so tree-sitter works
   without any runtime grammar compilation.
-- `i3status` currently uses a hardware-specific battery path
-  (`/sys/class/power_supply/BAT%d/uevent`) and a Toronto timezone; edit
-  `files/i3status/config` for other hardware/regions.
+- `files/waybar/config` pins the battery to `bat = "BAT1"` and the clock to
+  `America/Toronto`; edit those two for other hardware/regions. `BAT1` is what
+  this laptop exposes - there is no `BAT0`, which an i3status-style `BAT%d` glob
+  would have silently missed.
 
 ## Reusing on NixOS
 

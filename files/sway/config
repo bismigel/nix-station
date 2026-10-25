@@ -47,10 +47,11 @@ input "type:touchpad" {
 }
 
 ### Autostart
-# sway-audio-idle-inhibit aborts inside Pulse::connect (SIGABRT) when
-# pipewire-pulse's socket is not up yet, and sway does not restart a failed
-# `exec`, so it died silently at every login. Wait for the pulse socket first.
-exec sh -c 'until pactl info >/dev/null 2>&1; do sleep 1; done; exec sway-audio-idle-inhibit'
+# Idle inhibitor while audio is playing (calls, video). This is now a systemd
+# user unit - see modules/home/power.nix. It used to live here as
+#   exec sh -c 'until pactl info ...; exec sway-audio-idle-inhibit'
+# but sway does not restart a failed `exec`, and losing that race left no
+# inhibitor running at all, so calls still hit the idle timer and locked.
 exec nm-applet --indicator
 exec blueman-applet
 exec dunst
@@ -59,13 +60,30 @@ exec ~/.config/i3status/scripts/weather_daemon.sh
 exec ~/.config/i3status/scripts/mic_daemon.sh
 exec ~/.config/scripts/update-audio-output.sh
 
+### Bar
+# waybar replaces swaybar as the bar.
+#
+# Why: swaybar's tray only forwards clicks as StatusNotifierItem method calls
+# (Activate/ContextMenu/Scroll*) - it never renders a menu itself. Its source
+# says so literally (`// TODO menu` in swaybar/tray/item.c) and there is no
+# dbusmenu implementation in the tree. blueman, nm-applet and Proton VPN all
+# publish their menus via com.canonical.dbusmenu and none implements the
+# ContextMenu method, so tray right-click could never work. waybar implements
+# com.canonical.dbusmenu and pops a real GTK menu.
+#
+# The look is preserved by files/waybar/style.css (same font, #000000 bar, i3
+# workspace colours, i3status good/degraded/bad palette).
+#
+# The old `bar { }` block is intentionally gone: sway must not also spawn
+# swaybar alongside waybar.
+exec waybar
+
 ### Volume / mic / touchpad
-set $refresh_i3status pkill -USR1 i3status
-bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +10% && $refresh_i3status
-bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -10% && $refresh_i3status
-bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle && $refresh_i3status
-bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle && $refresh_i3status
-bindsym Shift+F1 exec pactl set-source-mute @DEFAULT_SOURCE@ toggle && $refresh_i3status
+bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +10%
+bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -10%
+bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
+bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
+bindsym Shift+F1 exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 # Touchpad toggle runs through swaymsg: "events toggle" is runtime-only.
 bindsym XF86TouchpadToggle exec swaymsg input type:touchpad events toggle
 
@@ -222,25 +240,9 @@ mode "resize" {
 }
 bindsym $mod+r mode "resize"
 
-# status bar (same bottom i3status bar and i3 default colors)
-bar {
-    position bottom
-    # No tray_output: swaybar has no "primary" concept, so leaving the option
-    # unset shows the tray on every bar (a name that matches no output would
-    # silently hide it).
-    status_command i3status -c ~/.config/i3status/config
-    font pango:Inconsolata Nerd Font Bold 9
-    colors {
-        background #000000
-        statusline #ffffff
-        separator  #666666
-        focused_workspace  #4c7899 #285577 #ffffff
-        active_workspace   #333333 #5f676a #ffffff
-        inactive_workspace #333333 #222222 #888888
-        urgent_workspace   #2f343a #900000 #ffffff
-        binding_mode       #2f343a #900000 #ffffff
-    }
-}
+# status bar: rendered by waybar (see `exec waybar` above), configured in
+# files/waybar/{config,style.css}. There is deliberately no `bar { }` block:
+# sway would otherwise also spawn swaybar.
 
 # Custom keybindings
 bindsym $mod+b exec $browser

@@ -1,0 +1,129 @@
+{
+  "layer": "bottom",
+  "position": "bottom",
+  "height": 22,
+  "spacing": 0,
+  "modules-left": ["sway/workspaces"],
+  "modules-center": ["sway/mode"],
+  "modules-right": [
+    "network",
+    "disk",
+    "memory",
+    "cpu",
+    "battery",
+    "pulseaudio",
+    "custom/audio",
+    "custom/mic",
+    "custom/weather",
+    "clock",
+    "tray"
+  ],
+
+  "sway/workspaces": {
+    "format": "{name}",
+    "disable-scroll": true,
+    "all-outputs": false
+  },
+
+  "sway/mode": {
+    "format": "{}",
+    "tooltip": false
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 10,
+    "tooltip": false
+  },
+
+  "network": {
+    "interval": 5,
+    "format-wifi": "W: {essid} {signalStrength}%",
+    "format-ethernet": "E: {ipaddr}",
+    "format-disconnected": "",
+    "tooltip-format-wifi": "{essid} ({signalStrength}%)\n{ipaddr}",
+    "tooltip-format-ethernet": "{ifname}\n{ipaddr}"
+  },
+
+  "disk": {
+    "interval": 30,
+    "format": "Disk: {free}",
+    "path": "/",
+    "states": {
+      "warning": 90,
+      "critical": 95
+    }
+  },
+
+  "memory": {
+    "interval": 5,
+    "format": "Mem: {used}/{avail}",
+    "tooltip-format": "{used} used of {total}",
+    "states": {
+      "warning": 85,
+      "critical": 95
+    }
+  },
+
+  "cpu": {
+    "interval": 5,
+    "format": "CPU: {usage}%",
+    "states": {
+      "warning": 80,
+      "critical": 95
+    }
+  },
+
+  "battery": {
+    "bat": "BAT1",
+    "interval": 10,
+    "states": {
+      "warning": 15,
+      "critical": 5
+    },
+    "format": "BAT {capacity}% {time}",
+    "format-charging": "CHR {capacity}% {time}",
+    "format-plugged": "FULL {capacity}%",
+    "format-full": "FULL {capacity}%",
+    "tooltip-format": "{time} remaining\n{capacity}% ({power}W)"
+  },
+
+  "pulseaudio": {
+    "format": "Vol: {volume}%",
+    "format-muted": "Vol: muted",
+    "format-source": "Mic: {volume}%",
+    "scroll-step": 5,
+    "tooltip-format": "{desc}"
+  },
+
+  "custom/audio": {
+    "exec": "cat /tmp/audio_output.txt 2>/dev/null",
+    "interval": 5,
+    "format": "{}",
+    "escape": true,
+    "tooltip": false
+  },
+
+  "custom/mic": {
+    "exec": "cat /tmp/mic_status.txt 2>/dev/null",
+    "interval": 1,
+    "format": "{}",
+    "escape": true,
+    "tooltip": false
+  },
+
+  "custom/weather": {
+    "exec": "cat /tmp/weather.txt 2>/dev/null",
+    "interval": 60,
+    "format": "{}",
+    "escape": true,
+    "tooltip": false
+  },
+
+  "clock": {
+    "interval": 10,
+    "format": "{:%m-%d %a %I:%M %p}",
+    "tooltip-format": "{:%Y-%m-%d %H:%M %Z}",
+    "timezone": "America/Toronto"
+  }
+}
