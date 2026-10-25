@@ -21,30 +21,50 @@ let
   # client finds both.
   boltPkg = pkgs.bolt-launcher.override { enableRS3 = true; };
 
-  # The blueman tray item sets StatusNotifierItem IconName to "blueman-tray"
-  # (blueman/main/Tray.py), and no icon theme on this system ships that name:
-  # Papirus only has blueman-tray-active/-disabled under <theme>/<size>/panel.
-  # swaybar's default fallback theme is hicolor, and hicolor's index.theme does
-  # not list a panel/ directory either, so the lookup failed and swaybar drew
-  # image-missing - the red sad face in the systray. Render PNGs (sway cannot
-  # load SVG icons) of Papirus's panel icon into hicolor/status, which is both
-  # the fallback theme and the icon directory the home profile unions from every
-  # package, so the name finally resolves.
-  bluemanTrayIcon =
-    let
-      svg = "${pkgs.papirus-icon-theme}/share/icons/Papirus/16x16/panel/blueman-tray-active.svg";
-    in
-    pkgs.runCommand "blueman-tray-icon" { nativeBuildInputs = [ pkgs.librsvg ]; } ''
-      for s in 16 22 24 32 48; do
-        mkdir -p "$out/share/icons/hicolor/''${s}x''${s}/status"
-        rsvg-convert -w "$s" -h "$s" "${svg}" \
-          -o "$out/share/icons/hicolor/''${s}x''${s}/status/blueman-tray.png"
-      done
-    '';
-
   boltLauncher = pkgs.writeShellScriptBin "bolt-launcher" ''
     export LD_LIBRARY_PATH="${lib.getLib openssl11}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     exec ${boltPkg}/bin/bolt-launcher "$@"
+  '';
+
+  # sway cannot render absolute-path StatusNotifierItem IconName values.
+  # swaybar/tray/icon.c has no '/' special case: it concatenates the whole path
+  # into every theme candidate, e.g.
+  #   ~/.icons/hicolor/128x128@2/actions//nix/store/.../state-disconnected.svg.png
+  # which can never exist, so it falls back to the red "image-missing" face.
+  #
+  # Proton VPN points IconName at an absolute asset path
+  # (tray_indicator.py ICON constants), so under sway its tray icon can never
+  # resolve. Rewrite those three constants to plain theme icon names and ship
+  # matching icons, so the normal theme lookup succeeds.
+  #
+  # (blueman needs no patch: it already sends a name, and its only icon happened
+  # to be an SVG - that was purely the missing GDK_PIXBUF_MODULE_FILE in
+  # identity.nix.)
+  protonVpnTray = pkgs.proton-vpn.overrideAttrs (old: {
+    postPatch = (old.postPatch or "") + ''
+      tray=proton/vpn/app/gtk/widgets/main/tray_indicator.py
+      if [ -f "$tray" ]; then
+        substituteInPlace "$tray" \
+          --replace 'ICONS_PATH / f"state-{states.Disconnected.__name__.lower()}.svg"' \
+                    'f"proton-vpn-tray-{states.Disconnected.__name__.lower()}"' \
+          --replace 'ICONS_PATH / f"state-{states.Connected.__name__.lower()}.svg"' \
+                    'f"proton-vpn-tray-{states.Connected.__name__.lower()}"' \
+          --replace 'ICONS_PATH / f"state-{states.Error.__name__.lower()}.svg"' \
+                    'f"proton-vpn-tray-{states.Error.__name__.lower()}"'
+      else
+        echo "WARNING: $tray not found - Proton tray icon patch did not apply" >&2
+      fi
+    '';
+  });
+
+  # The icons the patched app now asks for, in the theme dirs swaybar sweeps.
+  protonVpnTrayIcons = pkgs.runCommand "proton-vpn-tray-icons" { } ''
+    assets=$(echo ${protonVpnTray}/lib/python*/site-packages/proton/vpn/app/gtk/assets/icons)
+    for s in disconnected connected error; do
+      mkdir -p "$out/share/icons/hicolor/scalable/apps"
+      cp "$assets/state-$s.svg" \
+         "$out/share/icons/hicolor/scalable/apps/proton-vpn-tray-$s.svg"
+    done
   '';
 
   # Apps that need unfree (Steam, Zoom) or are large.
@@ -72,7 +92,8 @@ let
     # Communication
     vesktop
     zoom-us
-    proton-vpn
+    protonVpnTray
+    protonVpnTrayIcons
     localsend
 
     # Media / downloads
@@ -209,9 +230,10 @@ in
           # ---- Theming / fonts ----
           gtk3
           gtk4
+          # Bar (replaces swaybar; see files/sway/config + files/waybar/)
+          waybar
           adwaita-icon-theme
           papirus-icon-theme
-          bluemanTrayIcon
           liberation_ttf
           dejavu_fonts
           noto-fonts

@@ -1,0 +1,132 @@
+/* Reproduces the previous swaybar + i3status look.
+ *
+ * Colours are taken verbatim from the old bar block in files/sway/config and
+ * from the i3status general{} colours:
+ *   color_good #c5c8c6   color_degraded #f0c674   color_bad #cc6666
+ *   background #000000   statusline #ffffff       separator #666666
+ * Workspace colours are the i3 defaults the bar block used.
+ */
+
+* {
+  font-family: "Inconsolata Nerd Font";
+  font-weight: bold;
+  /* swaybar used `font pango:... Bold 9`, i.e. 9pt == 12px at 96dpi. */
+  font-size: 11px;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+}
+
+window#waybar {
+  background: #000000;
+  color: #ffffff;
+}
+
+tooltip {
+  background: #000000;
+  border: 1px solid #666666;
+}
+tooltip label {
+  color: #ffffff;
+}
+
+/* ---- Workspaces: i3 default colours, one bordered box per workspace ---- */
+
+#workspaces button {
+  /* swaybar drew each workspace as a ~15px-wide box with a ~2px gap, filling
+   * the bar height. waybar's content-sized buttons were ~27px with no gap. */
+  padding: 0 5px;
+  margin: 0 1px;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: #222222;
+  color: #888888;
+  box-shadow: inset 0 0 0 1px #333333;
+}
+
+/* i3 "active_workspace": visible but not focused */
+#workspaces button.visible {
+  background: #5f676a;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px #333333;
+}
+
+/* i3 "focused_workspace" */
+#workspaces button.focused {
+  background: #285577;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px #4c7899;
+}
+
+/* i3 "urgent_workspace" */
+#workspaces button.urgent {
+  background: #900000;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px #2f343a;
+}
+
+/* i3 "binding_mode" indicator (resize/move modes) */
+#mode {
+  background: #900000;
+  color: #ffffff;
+  padding: 0 8px;
+  box-shadow: inset 0 0 0 1px #2f343a;
+}
+
+/* ---- Status modules ----
+ * i3status rendered every block with color_good and drew a #666666 "|"
+ * separator between blocks. A 1px left border reproduces that separator.
+ */
+
+#network,
+#disk,
+#memory,
+#cpu,
+#battery,
+#pulseaudio,
+#custom-audio,
+#custom-mic,
+#custom-weather,
+#clock {
+  color: #c5c8c6;
+  /* No separator: the 1px border-left read as a thin, full-height line rather
+   * than i3bar's "|" glyph, so it looked wrong. Modules are just spaced. */
+  padding: 0 6px;
+}
+
+/* Battery: the requested behaviour. Amber when low, red when critical,
+ * and suppressed while charging on AC (i3status only flagged on battery). */
+
+#battery.warning:not(.charging) {
+  color: #f0c674;
+}
+
+#battery.critical:not(.charging) {
+  color: #cc6666;
+}
+
+#battery.charging,
+#battery.plugged,
+#battery.full {
+  color: #c5c8c6;
+}
+
+/* Same amber/red treatment for the other thresholded modules. */
+
+#cpu.warning,
+#memory.warning,
+#disk.warning {
+  color: #f0c674;
+}
+
+#cpu.critical,
+#memory.critical,
+#disk.critical {
+  color: #cc6666;
+}
+
+/* Muted audio is worth noticing. */
+#pulseaudio.muted {
+  color: #cc6666;
+}
