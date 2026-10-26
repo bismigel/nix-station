@@ -13,6 +13,7 @@
     "battery",
     "pulseaudio",
     "custom/audio",
+    "custom/micdev",
     "custom/mic",
     "custom/weather",
     "clock",
@@ -99,6 +100,14 @@
   "custom/audio": {
     "exec": "cat /tmp/audio_output.txt 2>/dev/null",
     "interval": 5,
+    "format": "{}",
+    "escape": true,
+    "tooltip": false
+  },
+
+  "custom/micdev": {
+    "exec": "~/.config/scripts/current-mic.sh",
+    "interval": 2,
     "format": "{}",
     "escape": true,
     "tooltip": false
