@@ -76,7 +76,12 @@ exec ~/.config/scripts/update-audio-output.sh
 #
 # The old `bar { }` block is intentionally gone: sway must not also spawn
 # swaybar alongside waybar.
-exec waybar
+#
+# waybar is not started here: it runs as a systemd user unit
+# (modules/home/sway.nix, systemd.user.services.waybar) so it restarts itself
+# when it crashes. `exec` has no respawn, and `swaymsg reload` never re-runs
+# `exec` lines, which is how the bar once vanished for a whole session after a
+# dbus-broker reload.
 
 ### Volume / mic / touchpad
 bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +10%
