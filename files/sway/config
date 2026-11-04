@@ -88,7 +88,11 @@ bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +10%
 bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -10%
 bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
-bindsym Shift+F1 exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
+# F12 is the mute pair, kept apart from sink cycling: cycle-audio moves the
+# default sink, audio-follow-output then drags the default source with it, so
+# using one key for both is how a call ended up on the headset mic.
+bindsym F12 exec pactl set-sink-mute @DEFAULT_SINK@ toggle
+bindsym Shift+F12 exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 # Touchpad toggle runs through swaymsg: "events toggle" is runtime-only.
 bindsym XF86TouchpadToggle exec swaymsg input type:touchpad events toggle
 
@@ -266,4 +270,4 @@ bindsym F8 exec brightnessctl set +10%
 bindsym F9 exec ~/.config/scripts/toggle-mirror.sh
 bindsym F10 exec ~/.config/scripts/toggle-airplane.sh
 bindsym F11 exec grim - | wl-copy
-bindsym F12 exec ~/.config/scripts/cycle-audio.sh
+bindsym $mod+F12 exec ~/.config/scripts/cycle-audio.sh
