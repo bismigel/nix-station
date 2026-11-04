@@ -9,6 +9,10 @@
 # The device relation comes from PipeWire's own `device.id` (a sink and its mic
 # share one device), which is why this works for ALSA, USB and Bluetooth alike
 # without hardcoding names. A name-based fallback covers a missing pw-dump.
+#
+# Switching the source is not enough on its own: WirePlumber persists mute and
+# volume per route and restores them on every reconnect, so the headset came back
+# at mute:true / 21% and the call captured silence. gain_floor() clears that.
 set -u
 
 resolve() {
@@ -62,6 +66,29 @@ source_exists() {
     "$PACTL" list short sources 2>/dev/null | awk '{print $2}' | grep -qx "$1"
 }
 
+# Clear a restored mute and lift an unusably low level on the source we just
+# picked. The mute is the real bug; the level is only lifted when it is so low
+# that speech cannot survive it, because 100% is not a safe default on this codec
+# (ALC295 capture saturates around 40% node volume - the noise floor goes from
+# -38 dBFS at 27% to clipping at 60%) and 27%, the internal array's own resting
+# level, is correct. This is not a place to overrule a level the user chose.
+# Trade-off: a mute set by hand (Shift+F1) survives until the next output device
+# change, at which point this re-asserts an open microphone.
+gain_floor() {
+    src=$1
+    if [ "$("$PACTL" get-source-mute "$src" 2>/dev/null | awk '{print $2}')" = yes ]; then
+        "$PACTL" set-source-mute "$src" 0 >/dev/null 2>&1 && log "unmuted $src"
+    fi
+    vol=$("$PACTL" get-source-volume "$src" 2>/dev/null | awk '/^Volume:/{print $5}' | tr -d '%')
+    case $vol in
+        '' | *[!0-9]*) return 0 ;;
+    esac
+    if [ "$vol" -lt 15 ]; then
+        "$PACTL" set-source-volume "$src" 50% >/dev/null 2>&1 &&
+            log "raised $src volume $vol% -> 50%"
+    fi
+}
+
 apply() {
     sink=$("$PACTL" get-default-sink 2>/dev/null) || return 0
     [ -n "$sink" ] || return 0
@@ -79,10 +106,16 @@ apply() {
         log "no input on the same device as sink $sink; leaving $cur"
         return 0
     fi
-    [ "$new" = "$cur" ] && return 0
+    # Also runs when the source is already default: a reconnect restores the
+    # route's mute without changing the default, which is the case that bit us.
+    if [ "$new" = "$cur" ]; then
+        gain_floor "$new"
+        return 0
+    fi
 
     if "$PACTL" set-default-source "$new" >/dev/null 2>&1; then
         log "sink $sink -> default source $cur => $new"
+        gain_floor "$new"
     else
         log "failed to set default source $new (sink $sink)"
     fi
