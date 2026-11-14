@@ -39,10 +39,8 @@ if [ -n "$next_sink" ]; then
     # Get sink description (without module prefix)
     sink_desc=$(echo "$next_sink" | sed 's/alsa_output\.//' | sed 's/\.analog-stereo//')
     notify-send "Audio output" "Switched to: $sink_desc"
-    # Update audio status file immediately
-    "$HOME/.config/scripts/current-audio.sh" > /tmp/audio_output.txt 2>/dev/null
-    # Refresh i3status to update audio display
-    pkill -USR1 i3status 2>/dev/null || true
+    # waybar's custom/audio module re-runs current-audio.sh every 5 s, so there
+    # is no status file to update and no daemon to signal here.
 else
     notify-send "Audio output" "Error: Could not find next sink"
 fi

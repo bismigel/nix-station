@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Weather daemon that updates weather file for i3status
+# Poll weather.sh into /tmp/weather.txt for waybar custom/weather.
 
 WEATHER_FILE="/tmp/weather.txt"
 PID_FILE="/tmp/weather.pid"

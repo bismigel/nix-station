@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Output current audio sink for i3status (text names)
+# Output current audio sink as a short label for waybar (custom/audio).
 
 current_sink=$(pactl info 2>/dev/null | grep "Default Sink:" | cut -d' ' -f3)
 
