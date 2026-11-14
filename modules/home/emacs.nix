@@ -52,8 +52,7 @@ in
       # Nix-built grammars there too. This makes tree-sitter work even when the
       # EMACS_TREESIT_GRAMMARS env var / treesit-extra-load-path setup hasn't
       # run yet, and stops treesit-auto from trying to compile with `cc`.
-        home.file.".emacs.d/tree-sitter".source = "${treesitGrammars}/lib";
-        home.file.".emacs.d/herdr".source = "${inputs.herdr-el}";
+      home.file.".emacs.d/tree-sitter".source = "${treesitGrammars}/lib";
 
       home.packages = [ treesitGrammars ];
       home.sessionVariables.EMACS_TREESIT_GRAMMARS = "${treesitGrammars}/lib";

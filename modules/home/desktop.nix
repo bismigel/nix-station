@@ -20,8 +20,9 @@ in
       # ---- Terminal ----
       xdg.configFile."ghostty/config".source = ../../files/ghostty/config;
 
-      # ---- System monitor ----
+      # ---- System monitor / info ----
       xdg.configFile."btop/btop.conf".source = ../../files/btop/btop.conf;
+      xdg.configFile."fastfetch/config.jsonc".source = ../../files/fastfetch/config.jsonc;
 
       # ---- GTK (font + cursor sizing) ----
       home.file.".gtkrc-2.0".source = ../../files/gtkrc-2.0;

@@ -5,38 +5,56 @@ on [Home Manager](https://github.com/nix-community/home-manager). It installs
 the apps and manages the dotfiles for a **Sway / Wayland** desktop, and it works
 on any Linux distribution that has Nix installed, as well as on NixOS.
 
-One configuration serves every machine. A host differs only by its hostname and
-username, both of which live in `config.station.hosts` (`modules/base.nix`):
+The home configuration is shared by every machine. A host differs by its
+hostname and username, both of which live in `config.station.hosts`
+(`modules/base.nix`):
 
-| host      | user      | machine                                  |
-| --------- | --------- | ---------------------------------------- |
-| `labanos` | `labanos` | Framework Laptop 16 (AMD Ryzen 7040)     |
-| `nixos`   | `okra`    | ASUS ROG Zephyrus G14 (GA402RK)          |
+| host      | user      | machine                                  | kind |
+| --------- | --------- | ---------------------------------------- | ---- |
+| `labanos` | `labanos` | Framework Laptop 16 (AMD Ryzen 7040)     | NixOS system config + embedded Home Manager |
+| `nixos`   | `okra`    | ASUS ROG Zephyrus G14 (GA402RK)          | standalone Home Manager only |
 
 The genuinely hardware-specific values are few and are kept together (see
 [Adding another machine](#adding-another-machine)) so a new PC mostly costs a
-hostname and a username.
+hostname and a username. A NixOS host additionally needs its own
+`nixos/<host>.nix` (boot, disk layout, services) - only `labanos` has one.
 
 ## Layout
 
 ```
 flake.nix                  # inputs + dendritic entry point (mkFlake + import-tree)
+docs/
+  troubleshooting.md       # symptom -> cause index for the odd-looking choices
+nixos/
+  labanos.nix              # the NixOS host: boot, LUKS, networking, audio, power, ly
+  disko-labanos.nix        # disk layout (LUKS2 + LVM + btrfs subvolumes)
+  README.md                # install / secrets runbook for that host
 modules/
   base.nix                 # flake systems, station.pkgs, the station.home option
   formatter.nix            # nixfmt
   home-configurations.nix  # flake.homeConfigurations + published flake.homeModules
+  nixos-configurations.nix # flake.nixosConfigurations.labanos
   home/
     identity.nix           # username/homeDirectory options, session vars, cursor
     packages.nix           # every application / CLI / font
-    sway.nix               # Sway, swaylock, waybar/i3status config
+    sway.nix               # Sway config + the session systemd units
     power.nix              # swayidle schedule (power-aware), audio idle inhibitor
+    audio.nix              # default source follows the default sink
     webcam.nix             # webcam white-balance reset at login
-    desktop.nix            # dunst, rofi, ghostty, btop, GTK settings
+    desktop.nix            # dunst, rofi, ghostty, btop, fastfetch, GTK settings
     emacs.nix              # literate Emacs config (tangled from emacsorg)
     shell.nix              # bash (prompt, aliases, PATH)
     scripts.nix            # ~/.config/scripts and ~/.local/bin helpers
+    backup.nix             # nightly age-encrypted admin backup to R2
+    deadman.nix            # external dead-man's switch for the homelab edge
 files/                     # the actual config files (tracked, portable)
 ```
+
+If something behaves oddly - a tray icon missing, the screen locking earlier than
+expected, a daemon that cannot find a command - start with
+[docs/troubleshooting.md](docs/troubleshooting.md): most of the strange-looking
+choices in here exist to fix a specific bug, and that page indexes them by
+symptom.
 
 ### Dendritic pattern
 
@@ -77,8 +95,8 @@ nothing assumes `okra` or `labanos`.
 ## What gets installed
 
 - **Desktop / WM:** Sway (swayidle, swaylock, swaybg), grim, slurp, wl-clipboard,
-  wtype, waybar, i3status (kept for its daemons only), rofi, dunst,
-  network-manager-applet, polkit-gnome, gnome-keyring, sway-audio-idle-inhibit
+  wtype, waybar, rofi, dunst, network-manager-applet, polkit-gnome (authentication
+  agent, run as a session unit), gnome-keyring, sway-audio-idle-inhibit
 - **Browsers:** Brave, Firefox, Chromium
 - **Comms:** Vesktop, Zoom, Proton VPN
 - **Media:** mpv, qBittorrent, Deluge
@@ -86,8 +104,9 @@ nothing assumes `okra` or `labanos`.
 - **Terminals / editors:** Ghostty, xterm, Emacs, Neovim
 - **CLI:** git, gh, jq, curl, wget, kubernetes, helm, tmux, btop, htop,
   fastfetch, cmatrix, yazi, ripgrep, fd, fzf, ...
-- **Audio / input / power:** pipewire, wireplumber, pulseaudio, pavucontrol,
-  playerctl, brightnessctl, tlp, powertop, upower, v4l-utils
+- **Audio / input / power:** PipeWire + WirePlumber, TLP, UPower and polkit run as
+  *system* services (on a NixOS host); the user profile only carries the clients
+  (pavucontrol, playerctl, brightnessctl, powertop, alsa-utils, v4l-utils).
 - **Fonts:** Inconsolata, Lekton and Symbols Nerd Fonts, Liberation, DejaVu,
   Noto.
 
@@ -102,17 +121,26 @@ nothing assumes `okra` or `labanos`.
   good/degraded/bad palette) and adds threshold colours: battery goes amber at
   15% and red at 5%, with the same treatment for cpu/memory/disk.
 - **Idle timeouts depend on the power source.** swayidle's timeouts are static
-  and two instances would double-fire, so every branch is registered and
-  `files/scripts/idle-power-guard.sh` decides at fire time whether it applies:
-  on AC the session locks after **2 hours**; on battery it hibernates after
-  **10 minutes** and locks at 15 minutes as a fallback. `before-sleep` always
-  locks, so closing the lid still locks immediately.
-- **`sway-audio-idle-inhibit` is a systemd unit**, not a sway `exec`. As an
-  `exec` it lost the pipewire startup race, sway does not restart a failed
-  `exec`, and the result was no inhibitor at all - so calls and video still
-  counted as idle and locked the session mid-use.
-- **SVG tray icons need `GDK_PIXBUF_MODULE_FILE`** (`identity.nix`). Without it
-  gdk-pixbuf cannot decode them and the tray draws `image-missing` instead.
+  and two instances would double-fire, so every branch is registered and each
+  timeout starts a small unit (`swayidle-lock-on-{ac,battery}`,
+  `swayidle-dpms-off-on-{ac,battery}`, `hibernate-on-battery`) whose
+  `ConditionACPower` lets **systemd** pick: the unit for the other power source
+  is simply skipped. No shell dispatcher is involved. On AC the session locks
+  after **2 hours** and never hibernates; on battery it locks at **10 minutes**,
+  blanks 30 s later, and hibernates at **15 minutes**. Locking before hibernating
+  means a refused or failed hibernation still leaves a dark, locked screen.
+  `before-sleep` always locks too, so a lid close locks immediately.
+- **Every session daemon is a systemd user unit** (`modules/home/sway.nix`), not
+  a sway `exec`: sway does not restart a failed `exec` and `swaymsg reload` never
+  re-runs one, so a crashed bar/applet/notification daemon stayed gone for the
+  session. `sway-audio-idle-inhibit` was the case that bit: as an `exec` it lost
+  the pipewire startup race and the result was no inhibitor at all, so calls and
+  video still counted as idle and locked the session mid-use. Check them with
+  `systemctl --user list-units 'waybar' 'dunst' 'nm-applet' 'blueman-applet'
+  'polkit-gnome*' 'power-manager' 'weather-daemon'`.
+- **SVG tray icons need a gdk-pixbuf loader cache** covering both gdk-pixbuf's
+  own loaders and librsvg's. `identity.nix` generates that cache; without it the
+  tray draws `image-missing` for SVG-only icons such as blueman's.
 - Proton VPN registers its tray item once at startup and never re-registers
   when the bar's StatusNotifierWatcher restarts, so its icon disappears after a
   bar restart until the app is restarted.
@@ -180,9 +208,10 @@ values that are genuinely tied to hardware. Nothing else is per-machine.
    | `$mod` and keybindings | `files/sway/config` | unchanged between my machines |
    | timezone | `files/waybar/config` | currently `America/Toronto` |
 
-The idle schedule needs no per-machine edits: `idle-power-guard.sh` reads the
-AC state from `/sys/class/power_supply/AC*/online` (or `ACAD/online`), and
-treats a machine with no AC node as permanently plugged in.
+The idle schedule needs no per-machine edits: the `swayidle-*-on-{ac,battery}`
+units use systemd's `ConditionACPower`, which reads
+`/sys/class/power_supply/*/online` itself and treats a machine with no AC node as
+permanently plugged in.
 
 ## Day-to-day
 
@@ -203,7 +232,7 @@ home-manager switch --flake .#nixos -b backup
 ```
 
 or remove the old files (`~/.config/sway`, `~/.config/waybar`,
-`~/.config/i3status`, `~/.config/rofi`, `~/.config/dunst`,
+`~/.config/rofi`, `~/.config/dunst`,
 `~/.config/scripts`, `~/.local/bin`, `~/.bashrc`, ...) before the first switch.
 
 A few things stay machine/distribution specific and are intentionally **not**
@@ -220,10 +249,13 @@ managed here:
 - **Steam** is unfree and, on a non-NixOS host, may need extra set-up (the
   `steam` package plus `nixpkgs.config.allowUnfree`, already set here). On NixOS
   prefer `programs.steam.enable = true`.
-- The bar is **waybar**; its `custom/{weather,audio,mic}` modules read
-  `/tmp/{weather,audio_output,mic_status}.txt`, still written by the daemons
-  under `~/.config/i3status/scripts/`. Only those *daemons* remain from
-  i3status - nothing renders i3status' own JSON any more.
+- The bar is **waybar**; its `custom/{weather,audio,micdev,mic}` modules run
+  `files/scripts/{weather_daemon,current-audio,current-mic,mic_status}.sh`
+  directly (`custom/weather` reads the `/tmp/weather.txt` the weather unit
+  refreshes). Nothing from i3status is used or installed any more.
+- **SSH into `labanos` is disabled** on purpose (`services.openssh.enable =
+  false`), which also closes tcp/22 in the firewall. The ssh *client* stays
+  installed for git remotes. Remote access is via the homelab, not this laptop.
 - **Emacs** uses the literate config from
   [`prawnfarmerdev/emacsorg`](https://github.com/prawnfarmerdev/emacsorg)
   (pinned as the `emacsorg` flake input). `modules/home/emacs.nix` tangles its
@@ -248,6 +280,10 @@ Add the Home Manager module to a NixOS host:
 
   # in the host configuration:
   imports = [ inputs.home-manager.nixosModules.home-manager ];
+  # One nixpkgs instance, as modules/nixos-configurations.nix does: the module
+  # already closes over `station.pkgs`, so let NixOS use that same instance
+  # instead of configuring a second one.
+  nixpkgs.pkgs = inputs.nix-station.station.pkgs;  # or your own
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;

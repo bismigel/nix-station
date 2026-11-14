@@ -13,6 +13,7 @@
     "battery",
     "pulseaudio",
     "custom/audio",
+    "custom/micdev",
     "custom/mic",
     "custom/weather",
     "clock",
@@ -97,16 +98,24 @@
   },
 
   "custom/audio": {
-    "exec": "cat /tmp/audio_output.txt 2>/dev/null",
+    "exec": "~/.config/scripts/current-audio.sh",
     "interval": 5,
     "format": "{}",
     "escape": true,
     "tooltip": false
   },
 
+  "custom/micdev": {
+    "exec": "~/.config/scripts/current-mic.sh",
+    "interval": 3,
+    "format": "{}",
+    "escape": true,
+    "tooltip": false
+  },
+
   "custom/mic": {
-    "exec": "cat /tmp/mic_status.txt 2>/dev/null",
-    "interval": 1,
+    "exec": "~/.config/scripts/mic_status.sh",
+    "interval": 2,
     "format": "{}",
     "escape": true,
     "tooltip": false

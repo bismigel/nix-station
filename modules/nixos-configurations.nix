@@ -4,13 +4,18 @@
 { config, inputs, ... }:
 {
   flake.nixosConfigurations.labanos = inputs.nixpkgs.lib.nixosSystem {
-    system = "x86_64-linux";
     specialArgs = { inherit inputs; };
     modules = [
       inputs.disko.nixosModules.disko
       inputs.home-manager.nixosModules.home-manager
       ../nixos/labanos.nix
       {
+        # One nixpkgs instance for everything: the system, the embedded Home
+        # Manager (useGlobalPkgs) and every `config.station.pkgs` reference in
+        # modules/home/*. Without this, NixOS configures an instance of its own
+        # while home modules use a second one, and nixpkgs-level settings
+        # (allowUnfree, overlays, problems.handlers) disagree between them.
+        nixpkgs.pkgs = config.station.pkgs;
         home-manager = {
           useGlobalPkgs = true;
           useUserPackages = true;

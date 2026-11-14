@@ -8,6 +8,24 @@ let
   pkgs = config.station.pkgs;
   inherit (pkgs.stdenv.hostPlatform) system;
 
+  # Brave is missing from the nixos-unstable pin: it was removed while
+  # unmaintained (#582838) and re-added on master in #584534, which has not
+  # reached nixos-unstable yet. Take it from the pinned revision flake.nix;
+  # only the wrapper is built locally, the browser itself comes from cache.
+  # Drop this along with the `nixpkgs-brave` input once unstable has it.
+  pkgsBrave = import inputs.nixpkgs-brave {
+    inherit system;
+    config.allowUnfree = true;
+  };
+  brave = pkgsBrave.brave;
+
+  # nixpkgs' bws 2.1.0 dropped libsqlite3 from buildInputs, but its
+  # libsqlite3-sys crate still links against it, so the final link fails with
+  # `ld: cannot find -lsqlite3`. Put the library back until nixpkgs is fixed.
+  bws = pkgs.bws.overrideAttrs (old: {
+    buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.sqlite ];
+  });
+
   # RuneScape 3's native Linux client (used by Bolt) needs OpenSSL 1.1, which
   # nixpkgs removed as end-of-life, so source it from the pinned older nixpkgs.
   pkgsOld = import inputs.nixpkgs-old {
@@ -124,6 +142,10 @@ in
         with pkgs;
         [
           # ---- Wayland compositor / desktop shell ----
+          # sway/swaylock/swayidle are also installed system-wide by
+          # `programs.sway.enable` on the NixOS host, but they must stay here for
+          # the standalone (non-NixOS) hosts, which have no system profile to rely
+          # on. Same store path, so the duplicate costs nothing.
           sway
           swayidle
           swaylock
@@ -133,35 +155,28 @@ in
           wl-clipboard
           wtype
           sway-audio-idle-inhibit
-          i3status
           rofi
           dunst
           libnotify
           networkmanagerapplet
-          polkit_gnome
           gnome-keyring
           xdg-utils
           xdg-desktop-portal
           xdg-desktop-portal-gtk
 
           # ---- Input / power / audio ----
-          libinput
+          # The PipeWire stack, TLP, UPower and polkit run as system services.
+          # Their packages used to be listed here as well, which put a second
+          # `pactl`/`wpctl`/`pkexec` on PATH that can drift from the running
+          # daemon after a partial upgrade.
           brightnessctl
           playerctl
-          upower
-          tlp
           powertop
-          pipewire
-          wireplumber
-          pulseaudio
           pavucontrol
           alsa-utils
 
-          # ---- Session bus / system helpers ----
-          dbus
+          # ---- Session helpers ----
           util-linux
-          networkmanager
-          polkit
 
           # ---- Bluetooth ----
           # Terminal UI for pairing/connecting devices, the nmtui analogue to
@@ -184,35 +199,34 @@ in
           wget
           openssl
           sshpass
-            kubernetes
-            kubernetes-helm
-            argocd
-            k9s
-            kubectx
-            opentofu
-            yq
+          kubernetes
+          kubernetes-helm
+          argocd
+          k9s
+          kubectx
+          opentofu
+          yq
 
-            # ---- Server and disk diagnostics ----
-            btrfs-progs
-            smartmontools
-            nvme-cli
-            lm_sensors
-            parted
-            gptfdisk
+          # ---- Server and disk diagnostics ----
+          btrfs-progs
+          smartmontools
+          nvme-cli
+          lm_sensors
+          parted
+          gptfdisk
 
-            # ---- Homelab secrets / backup / context ----
-            sops
-            age
-            rclone
-            rsync
-            bitwarden-cli
-            bws
+          # ---- Homelab secrets / backup / context ----
+          sops
+          age
+          rclone
+          rsync
+          bitwarden-cli
+          bws
 
-            tmux
-            opencode
-            pi-coding-agent
-            herdr
-            btop
+          tmux
+          opencode
+          pi-coding-agent
+          btop
           htop
           fastfetch
           cmatrix

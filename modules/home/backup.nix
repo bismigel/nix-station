@@ -1,7 +1,12 @@
 { ... }:
 {
   config.station.home =
-    { pkgs, config, lib, ... }:
+    {
+      pkgs,
+      config,
+      lib,
+      ...
+    }:
     {
       # Back up the admin box's precious local data (homelab context, keys,
       # cloudflare backup, SOPS keyring, age keys, .env) to R2, age-encrypted —
@@ -12,7 +17,19 @@
         Service = {
           Type = "oneshot";
           EnvironmentFile = "${config.home.homeDirectory}/.config/homelab-backup.env";
-          Environment = "PATH=${lib.makeBinPath (with pkgs; [ bash coreutils gnutar gzip age rclone ])}";
+          Environment = "PATH=${
+            lib.makeBinPath (
+              with pkgs;
+              [
+                bash
+                coreutils
+                gnutar
+                gzip
+                age
+                rclone
+              ]
+            )
+          }";
           ExecStart = pkgs.writeShellScript "backup-nixstation" ''
             set -euo pipefail
             export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare \

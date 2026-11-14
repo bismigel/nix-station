@@ -1,0 +1,40 @@
+name: ci
+
+# Everything here is evaluation-only: `nix flake check --no-build` forces every
+# output (both home configs, the NixOS host, the formatter) and `nix fmt --check`
+# keeps the tree honest. Nothing is built, so a run costs a couple of minutes and
+# no cache budget.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            # The flake pins an EOL nixpkgs (23.11) for RuneScape's OpenSSL 1.1.
+            accept-flake-config = false
+
+      - name: Evaluate every flake output
+        run: nix flake check --no-build --show-trace
+
+      - name: Formatting
+        run: nix fmt -- --check .
+
+      - name: Shell scripts
+        run: nix run nixpkgs#shellcheck -- -S warning files/scripts/*.sh files/local-bin/*.sh

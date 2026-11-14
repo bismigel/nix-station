@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Weather script for i3status using Open-Meteo API
+# Weather fetcher (Open-Meteo) for waybar custom/weather.
 
 # Toronto coordinates
 LAT="43.70"
