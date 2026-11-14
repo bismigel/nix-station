@@ -12,7 +12,7 @@ echo "Weather: N/A" > "$WEATHER_FILE"
 echo $$ > "$PID_FILE"
 
 # Clean up on exit (don't remove weather file, just PID)
-trap "rm -f '$PID_FILE'; exit" INT TERM EXIT
+trap 'rm -f "$PID_FILE"; exit' INT TERM EXIT
 
 while true; do
     # Run weather script and capture output
