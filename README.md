@@ -23,6 +23,8 @@ hostname and a username. A NixOS host additionally needs its own
 
 ```
 flake.nix                  # inputs + dendritic entry point (mkFlake + import-tree)
+docs/
+  troubleshooting.md       # symptom -> cause index for the odd-looking choices
 nixos/
   labanos.nix              # the NixOS host: boot, LUKS, networking, audio, power, ly
   disko-labanos.nix        # disk layout (LUKS2 + LVM + btrfs subvolumes)
@@ -47,6 +49,12 @@ modules/
     deadman.nix            # external dead-man's switch for the homelab edge
 files/                     # the actual config files (tracked, portable)
 ```
+
+If something behaves oddly - a tray icon missing, the screen locking earlier than
+expected, a daemon that cannot find a command - start with
+[docs/troubleshooting.md](docs/troubleshooting.md): most of the strange-looking
+choices in here exist to fix a specific bug, and that page indexes them by
+symptom.
 
 ### Dendritic pattern
 
