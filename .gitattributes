@@ -1,0 +1,5 @@
+# Everything in this repo is consumed by shell scripts and Nix on Linux hosts.
+# Normalise line endings so a checkout on Windows cannot leave CRLF in a script
+# that systemd or sway then refuses to execute.
+* text=auto eol=lf
+*.sh text eol=lf
