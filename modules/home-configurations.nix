@@ -11,20 +11,19 @@
 
   # One home configuration per host in `station.hosts`. Every host gets the
   # same merged module; only the username and home directory differ.
-  flake.homeConfigurations = lib.mapAttrs'
-    (host: cfg:
-      lib.nameValuePair host (
-        inputs.home-manager.lib.homeManagerConfiguration
-          {
-            pkgs = config.station.pkgs;
-            modules = [
-              config.station.home
-              ({ ... }: {
-                home.username = cfg.username;
-                home.homeDirectory = "/home/${cfg.username}";
-              })
-            ];
-          }
-      ))
-    config.station.hosts;
+  flake.homeConfigurations = lib.mapAttrs' (
+    host: cfg:
+    lib.nameValuePair host (
+      inputs.home-manager.lib.homeManagerConfiguration {
+        pkgs = config.station.pkgs;
+        modules = [
+          config.station.home
+          ({ ... }: {
+            home.username = cfg.username;
+            home.homeDirectory = "/home/${cfg.username}";
+          })
+        ];
+      }
+    )
+  ) config.station.hosts;
 }
