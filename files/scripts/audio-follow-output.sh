@@ -72,8 +72,9 @@ source_exists() {
 # (ALC295 capture saturates around 40% node volume - the noise floor goes from
 # -38 dBFS at 27% to clipping at 60%) and 27%, the internal array's own resting
 # level, is correct. This is not a place to overrule a level the user chose.
-# Trade-off: a mute set by hand (Shift+F1) survives until the next output device
-# change, at which point this re-asserts an open microphone.
+# Trade-off: a mute set by hand (Shift+F1) survives until the next device event
+# (a sink/card appearing, disappearing, or the default output changing), at which
+# point this re-asserts an open microphone.
 gain_floor() {
     src=$1
     if [ "$("$PACTL" get-source-mute "$src" 2>/dev/null | awk '{print $2}')" = yes ]; then
@@ -89,7 +90,17 @@ gain_floor() {
     fi
 }
 
+# apply [lift-mute]
+#
+# Routing always runs: whichever device the sound is on, the microphone follows.
+# Lifting a muted source is separable, because `pactl` reports volume and mute
+# changes as `Event 'change' on sink` / `on card` - indistinguishable from the
+# events a real device change produces. So the gain floor is only applied when
+# the event actually means "a device appeared, disappeared, or the default
+# output changed"; a plain 'change' re-routes without touching the mute, which is
+# what keeps a deliberate Shift+F1 mute from being undone by a volume key.
 apply() {
+    lift=${1:-yes}
     sink=$("$PACTL" get-default-sink 2>/dev/null) || return 0
     [ -n "$sink" ] || return 0
     cur=$("$PACTL" get-default-source 2>/dev/null)
@@ -109,13 +120,13 @@ apply() {
     # Also runs when the source is already default: a reconnect restores the
     # route's mute without changing the default, which is the case that bit us.
     if [ "$new" = "$cur" ]; then
-        gain_floor "$new"
+        [ "$lift" = yes ] && gain_floor "$new"
         return 0
     fi
 
     if "$PACTL" set-default-source "$new" >/dev/null 2>&1; then
         log "sink $sink -> default source $cur => $new"
-        gain_floor "$new"
+        [ "$lift" = yes ] && gain_floor "$new"
     else
         log "failed to set default source $new (sink $sink)"
     fi
@@ -123,9 +134,19 @@ apply() {
 
 apply
 
-# Re-evaluate whenever output devices, their cards, or the server default change.
+# Re-evaluate on every sink/card/server event, but only lift a muted source when
+# the event can mean a device appeared, disappeared, or the default output
+# changed. Volume and mute changes emit 'change' on sink *and* on card, so that
+# case re-routes silently.
 "$PACTL" subscribe 2>/dev/null | while read -r line; do
     case $line in
-        *" on sink"* | *" on card"* | *" on server"*) apply ;;
+        *"'new' on sink"* | *"'remove' on sink"* | \
+            *"'new' on card"* | *"'remove' on card"* | \
+            *"'change' on server"*)
+            apply yes
+            ;;
+        *"'change' on sink"* | *"'change' on card"*)
+            apply no
+            ;;
     esac
 done

@@ -4,7 +4,12 @@
 }:
 {
   config.station.home =
-    { config, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       # Installed by modules/home/scripts.nix. Absolute path, not $HOME/... -
       # systemd treats $VAR in an Exec line as environment-variable syntax.
@@ -31,6 +36,23 @@
           ExecStart = audioFollow;
           Restart = "always";
           RestartSec = 3;
+          # pactl/pw-dump/jq/awk are not on a user unit's PATH by default; the
+          # script resolves them itself, but spell out a working PATH so it does
+          # not have to.
+          Environment = [
+            "PATH=${
+              lib.makeBinPath (
+                with pkgs;
+                [
+                  bash
+                  coreutils
+                  jq
+                  pulseaudio
+                  pipewire
+                ]
+              )
+            }:${config.home.homeDirectory}/.nix-profile/bin:/run/current-system/sw/bin"
+          ];
         };
         Install.WantedBy = [ "sway-session.target" ];
       };
