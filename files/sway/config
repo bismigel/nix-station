@@ -1,8 +1,8 @@
 # Sway configuration.
 #
 # Ported from the i3 config to Wayland. The look is intentionally identical:
-# same font, same bottom bar (swaybar + i3status), same i3 default bar colors,
-# same keybindings, same workspace layout/assignments.
+# same font, same bottom bar (now waybar - see the Bar section), same i3 default
+# bar colours, same keybindings, same workspace layout/assignments.
 #
 # Pull in the NixOS-provided snippet (systemd/D-Bus environment import).
 include /etc/sway/config.d/*
@@ -47,18 +47,20 @@ input "type:touchpad" {
 }
 
 ### Autostart
-# Idle inhibitor while audio is playing (calls, video). This is now a systemd
-# user unit - see modules/home/power.nix. It used to live here as
-#   exec sh -c 'until pactl info ...; exec sway-audio-idle-inhibit'
-# but sway does not restart a failed `exec`, and losing that race left no
-# inhibitor running at all, so calls still hit the idle timer and locked.
-exec nm-applet --indicator
-exec blueman-applet
-exec dunst
-exec ~/.config/scripts/power-manager.sh
-exec ~/.config/i3status/scripts/weather_daemon.sh
-exec ~/.config/i3status/scripts/mic_daemon.sh
-exec ~/.config/scripts/update-audio-output.sh
+# Nothing starts here. Every session daemon is a systemd user unit bound to
+# sway-session.target (modules/home/sway.nix, modules/home/audio.nix,
+# modules/home/power.nix, modules/home/webcam.nix): waybar, dunst, nm-applet,
+# blueman-applet, the polkit agent, power-manager, the weather poller,
+# audio-follow-output and sway-audio-idle-inhibit.
+#
+# All of them used to be `exec` lines here, which is the one thing sway cannot
+# make resilient: it does not restart a failed `exec`, and `swaymsg reload`
+# never re-runs one, so a crashed daemon stayed gone for the whole session. The
+# idle inhibitor was the case that bit: losing its start race left no inhibitor
+# running at all, so calls still hit the idle timer and locked the screen.
+#
+# Check them with: systemctl --user list-units 'waybar' 'dunst' 'nm-applet' \
+#   'blueman-applet' 'polkit-gnome*' 'power-manager' 'weather-daemon'
 
 ### Bar
 # waybar replaces swaybar as the bar.
@@ -88,11 +90,11 @@ bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +10%
 bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -10%
 bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
-# F12 is the mute pair, kept apart from sink cycling: cycle-audio moves the
-# default sink, audio-follow-output then drags the default source with it, so
-# using one key for both is how a call ended up on the headset mic.
-bindsym F12 exec pactl set-sink-mute @DEFAULT_SINK@ toggle
-bindsym Shift+F12 exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
+# Mutes live on Fn+F1 (above, arrives as XF86AudioMute) and Shift+F1 for the mic.
+# F12 stays on sink cycling: cycle-audio.sh moves the default sink, and
+# audio-follow-output then drags the default source with it, so a mute on F12
+# would share a key with an output change.
+bindsym Shift+F1 exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
 # Touchpad toggle runs through swaymsg: "events toggle" is runtime-only.
 bindsym XF86TouchpadToggle exec swaymsg input type:touchpad events toggle
 
@@ -249,9 +251,9 @@ mode "resize" {
 }
 bindsym $mod+r mode "resize"
 
-# status bar: rendered by waybar (see `exec waybar` above), configured in
-# files/waybar/{config,style.css}. There is deliberately no `bar { }` block:
-# sway would otherwise also spawn swaybar.
+# status bar: rendered by waybar, configured in files/waybar/{config,style.css}.
+# There is deliberately no `bar { }` block: sway would otherwise also spawn
+# swaybar.
 
 # Custom keybindings
 bindsym $mod+b exec $browser
@@ -270,4 +272,4 @@ bindsym F8 exec brightnessctl set +10%
 bindsym F9 exec ~/.config/scripts/toggle-mirror.sh
 bindsym F10 exec ~/.config/scripts/toggle-airplane.sh
 bindsym F11 exec grim - | wl-copy
-bindsym $mod+F12 exec ~/.config/scripts/cycle-audio.sh
+bindsym F12 exec ~/.config/scripts/cycle-audio.sh
