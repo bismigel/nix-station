@@ -64,7 +64,7 @@ in
             libnotify
           ]
         )
-      }:${config.home.homeDirectory}/.nix-profile/bin:/run/current-system/sw/bin";
+      }:${config.home.profileDirectory}/bin:/run/current-system/sw/bin";
     in
     {
       # ---- Sway window manager (Wayland) ----

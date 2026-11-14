@@ -27,7 +27,7 @@ in
           Type = "oneshot";
           ExecStart = "${config.home.homeDirectory}/.local/bin/webcam-wb.sh";
           Environment = [
-            "PATH=${pkgs.v4l-utils}/bin:${config.home.homeDirectory}/.nix-profile/bin:/run/current-system/sw/bin:/usr/bin:/bin"
+            "PATH=${pkgs.v4l-utils}/bin:${config.home.profileDirectory}/bin:/run/current-system/sw/bin:/usr/bin:/bin"
           ];
         };
         Install.WantedBy = [ "default.target" ];

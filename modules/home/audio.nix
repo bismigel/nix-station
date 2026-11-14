@@ -51,7 +51,7 @@
                   pipewire
                 ]
               )
-            }:${config.home.homeDirectory}/.nix-profile/bin:/run/current-system/sw/bin"
+            }:${config.home.profileDirectory}/bin:/run/current-system/sw/bin"
           ];
         };
         Install.WantedBy = [ "sway-session.target" ];
