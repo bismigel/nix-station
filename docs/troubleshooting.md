@@ -78,6 +78,37 @@ systemctl --user is-active swayidle-lock-on-battery
 - **Hibernation does not resume.** It needs swap >= RAM (`/dev/pool/swap`, 16 G
   vs 13 GiB) and `resume=` on the kernel command line; both come from
   `nixos/disko-labanos.nix`.
+- **Red screen on the session VT, and a lock screen that cannot be unlocked.**
+  Blanking was `swaymsg output * dpms off`. After the following `dpms on` the
+  output stayed dead: sway reported success, `swaymsg -t get_outputs` kept
+  `dpms: false`, and the panel held a flat `#ff0000` frame (a 2560x1600 capture
+  was 100% `#ff0000`, one colour, cursor still moving) while the session kept
+  running - so a lock screen could not be repainted and could not be unlocked.
+  Two separate defects were found, see [wlroots-gamma-reset.md](wlroots-gamma-reset.md):
+  * wlroots 0.20.2 aborts the whole atomic commit when a NULL colour transform
+    is "reset" on a CRTC that has no gamma LUT at all (`legacy.c` returns false
+    for `size == 0`, and `atomic_device_commit()`'s `goto out` logs nothing).
+    Verified and fixed in a VM; sway only shows `Backend commit failed`.
+  * On this amdgpu panel the output *did* come back and commits succeeded, yet
+    every frame was flat red - including the screencopy output - until the
+    session was restarted. Unreproduced in the VM and still unexplained.
+
+  `Failed to disable CRTC 80` on VT switches and `Atomic commit failed:
+  Permission denied` during pause are expected: the kernel drops DRM master when
+  the VT goes away, so the teardown commit cannot succeed. They are noise, not
+  the cause.
+
+  Blanking is now the backlight (`brightnessctl -q -s set 0`, restored by
+  `brightnessctl -q -r` on the swayidle `resume` event), so the output is never
+  disabled and neither defect can be reached. A plain VT switch (Ctrl+Alt+F1)
+  does not do this. Recovery from a wedged session: log in on tty2 and
+  `swaymsg exit`, then log back in on tty1.
+- **The backlight attribute is group-writable.** `brightnessctl` in a user unit
+  cannot use logind's `SetBrightness` (the systemd --user manager is not a seat
+  session), so a udev rule in `nixos/labanos.nix` gives the `video` group write
+  access to `/sys/class/backlight/*/brightness`. Saved brightness lives in
+  `$XDG_RUNTIME_DIR/brightnessctl`, so it never survives a reboot - a stuck dim
+  panel is also just `brightnessctl set 50%` or the `Fn` brightness keys.
 
 ## Audio
 

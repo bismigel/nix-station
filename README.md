@@ -123,12 +123,14 @@ nothing assumes `okra` or `labanos`.
 - **Idle timeouts depend on the power source.** swayidle's timeouts are static
   and two instances would double-fire, so every branch is registered and each
   timeout starts a small unit (`swayidle-lock-on-{ac,battery}`,
-  `swayidle-dpms-off-on-{ac,battery}`, `hibernate-on-battery`) whose
+  `swayidle-blank-on-{ac,battery}`, `hibernate-on-battery`) whose
   `ConditionACPower` lets **systemd** pick: the unit for the other power source
   is simply skipped. No shell dispatcher is involved. On AC the session locks
   after **2 hours** and never hibernates; on battery it locks at **10 minutes**,
   blanks 30 s later, and hibernates at **15 minutes**. Locking before hibernating
   means a refused or failed hibernation still leaves a dark, locked screen.
+  Blanking dims the backlight (`brightnessctl -s set 0`), never DPMS: see
+  `modules/home/power.nix` for why.
   `before-sleep` always locks too, so a lid close locks immediately.
 - **Every session daemon is a systemd user unit** (`modules/home/sway.nix`), not
   a sway `exec`: sway does not restart a failed `exec` and `swaymsg reload` never
