@@ -9,7 +9,16 @@ let
   # home-manager gives its unit - bash only, on purpose (see below). Every
   # binary invoked from a timeout is therefore an absolute path.
   startUnit = unit: "${pkgs.systemd}/bin/systemctl --user start ${unit}.service";
-  dpmsOn = "${pkgs.sway}/bin/swaymsg 'output * dpms on'";
+  # Blank by dimming the backlight, never with `swaymsg output * dpms off`.
+  # DPMS disables the CRTC, and on this GPU (amdgpu, eDP-1) the unblank never
+  # re-creates the output: the panel is left scanning a dead framebuffer
+  # (uniform red, cursor still moving, `grim` captures it byte-identically)
+  # while the session keeps running - so a lock screen can never be repainted
+  # and the machine cannot be unlocked from the console it is on. The
+  # backlight leaves DRM alone, and if the restore path ever fails
+  # `brightnessctl set 50%` from tty2 brings the panel back.
+  panelOff = "${pkgs.brightnessctl}/bin/brightnessctl -q -s set 0";
+  panelOn = "${pkgs.brightnessctl}/bin/brightnessctl -q -r";
 in
 {
   config.station.home =
@@ -52,8 +61,8 @@ in
           }
           {
             timeout = 630;
-            command = startUnit "swayidle-dpms-off-on-battery";
-            resumeCommand = dpmsOn;
+            command = startUnit "swayidle-blank-on-battery";
+            resumeCommand = panelOn;
           }
           {
             timeout = 900;
@@ -66,8 +75,8 @@ in
           }
           {
             timeout = 7230;
-            command = startUnit "swayidle-dpms-off-on-ac";
-            resumeCommand = dpmsOn;
+            command = startUnit "swayidle-blank-on-ac";
+            resumeCommand = panelOn;
           }
         ];
         events.before-sleep = "${pkgs.swaylock}/bin/swaylock -f";
@@ -107,24 +116,24 @@ in
           };
           Service.ExecStart = "${pkgs.swaylock}/bin/swaylock -f";
         };
-        swayidle-dpms-off-on-ac = {
+        swayidle-blank-on-ac = {
           Unit = {
-            Description = "Blank the outputs after idle on AC";
+            Description = "Blank the panel after idle on AC";
             ConditionACPower = true;
           };
           Service = {
             Type = "oneshot";
-            ExecStart = "${pkgs.sway}/bin/swaymsg 'output * dpms off'";
+            ExecStart = panelOff;
           };
         };
-        swayidle-dpms-off-on-battery = {
+        swayidle-blank-on-battery = {
           Unit = {
-            Description = "Blank the outputs after idle on battery";
+            Description = "Blank the panel after idle on battery";
             ConditionACPower = false;
           };
           Service = {
             Type = "oneshot";
-            ExecStart = "${pkgs.sway}/bin/swaymsg 'output * dpms off'";
+            ExecStart = panelOff;
           };
         };
 

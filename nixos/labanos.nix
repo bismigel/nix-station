@@ -21,6 +21,16 @@
   hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
 
+  # Backlight sysfs is root-only, so `brightnessctl` falls back to logind's
+  # SetBrightness - and logind refuses that for processes in the systemd --user
+  # manager, because the manager is not a seat session ("Failed to set
+  # brightness: Operation not permitted"). The idle blank lives in a user unit,
+  # so hand the video group write access to the attribute itself; then
+  # brightnessctl uses plain sysfs from any context.
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="${pkgs.coreutils}/bin/chmod g+w /sys/class/backlight/%k/brightness"
+  '';
+
   # Firmware updates (fwupd/`fwupdmgr`, LVFS). The service pulls in udisks2
   # and polkit, and exposes devices to the system DBus.
   services.fwupd.enable = true;
@@ -359,7 +369,7 @@
   # so a lid left shut keeps draining. On battery, suspend first for the instant
   # resume, then hibernate after HibernateDelaySec; on AC, plain suspend and
   # never hibernate (the suspend-then-hibernate path is battery-only), matching
-  # hibernate-on-battery.service and the swayidle-lock/dpms-off units.
+  # hibernate-on-battery.service and the swayidle-lock/blank units.
   services.logind.settings = {
     Login = {
       HandleLidSwitch = "suspend-then-hibernate";
